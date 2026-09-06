@@ -294,10 +294,15 @@ class Y2PlayerView(
             return
         }
         if (selectionOnly) {
-            if (ensureSelectionVisible()) requestVisibleRowArtworks()
+            val visibleStartChanged = ensureSelectionVisible()
+            if (visibleStartChanged) requestVisibleRowArtworks()
             updateFooterPosition()
             updateContentDescription(newState)
-            invalidate(0, headerHeight.toInt(), width, height)
+            if (visibleStartChanged) {
+                invalidate()
+            } else {
+                invalidate(0, rowAreaTop().toInt(), width, height)
+            }
             return
         }
         if (progressOnly) {
@@ -505,7 +510,7 @@ class Y2PlayerView(
             return
         }
         canvas.drawColor(palette.background)
-        drawHeader(canvas)
+        if (isHeaderVisible()) drawHeader(canvas)
         if (state.currentScreen == Screen.FmRadio) {
             drawFmRadio(canvas)
         } else if (isNowPlayingSurface()) {
@@ -535,11 +540,17 @@ class Y2PlayerView(
 
     private fun isSplitHome(): Boolean = state.currentScreen == Screen.MainMenu && width > height
 
+    private fun isHeaderVisible(): Boolean {
+        if (isNowPlayingSurface() || state.currentScreen == Screen.FmRadio || isSplitHome()) return true
+        return visibleStart == 0
+    }
+
     private fun rowAreaRight(): Float = if (isSplitHome()) width * .55f else width.toFloat()
 
-    private fun hasDetailHeader(): Boolean = state.currentScreen is Screen.AlbumSongs || state.currentScreen is Screen.ArtistSongs
+    private fun hasDetailHeader(): Boolean =
+        (state.currentScreen is Screen.AlbumSongs || state.currentScreen is Screen.ArtistSongs) && visibleStart == 0
 
-    private fun rowAreaTop(): Float = headerHeight + when {
+    private fun rowAreaTop(): Float = (if (isHeaderVisible()) headerHeight else 0f) + when {
         state.currentScreen is Screen.Search -> SEARCH_QUERY_HEIGHT_DP * density
         hasDetailHeader() -> detailHeaderHeight
         else -> 0f
@@ -642,7 +653,7 @@ class Y2PlayerView(
 
     private fun drawSearchQuery(canvas: Canvas) {
         val screen = state.currentScreen as? Screen.Search ?: return
-        val top = headerHeight
+        val top = if (isHeaderVisible()) headerHeight else 0f
         val bottom = rowAreaTop()
         paint.style = Paint.Style.FILL
         paint.color = palette.surface
@@ -1191,7 +1202,7 @@ class Y2PlayerView(
     }
 
     private fun drawDetailHeader(canvas: Canvas) {
-        val top = headerHeight
+        val top = if (isHeaderVisible()) headerHeight else 0f
         val bottom = top + detailHeaderHeight
         paint.style = Paint.Style.FILL
         paint.color = palette.surface

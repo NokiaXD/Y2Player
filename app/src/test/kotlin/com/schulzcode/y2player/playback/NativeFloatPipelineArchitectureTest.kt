@@ -46,7 +46,7 @@ class NativeFloatPipelineArchitectureTest {
     }
 
     private fun nativeSource(): String =
-        File(repositoryRoot(), "app/src/main/c/y2audio.c").readText()
+        File(repositoryRoot(), "app/src/main/c/y2audio.c").readText().replace("\r\n", "\n")
 
     private fun repositoryRoot(): File {
         var directory: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile

@@ -47,6 +47,8 @@ import com.schulzcode.y2player.queue.QueueController
 import com.schulzcode.y2player.safe.SafeModeManager
 import com.schulzcode.y2player.settings.AppPreferences
 import com.schulzcode.y2player.storage.StorageMonitor
+import com.schulzcode.y2player.remote.RemoteCommand
+import com.schulzcode.y2player.remote.Y2RemoteServer
 import com.schulzcode.y2player.storage.Y2StoragePaths
 import com.schulzcode.y2player.storage.preferredWritableRoot
 import com.schulzcode.y2player.ui.MainActivity
@@ -255,6 +257,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     private lateinit var audioEffectsController: AudioEffectsController
     private lateinit var dacController: DacController
     private lateinit var remoteControl: LegacyRemoteControlController
+    private lateinit var remoteServer: Y2RemoteServer
     private lateinit var hapticController: HapticController
     private lateinit var database: LibraryDatabase
     private lateinit var libraryRepository: LibraryRepository
@@ -385,6 +388,13 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
                 onSeekRequested = { position -> post { seekAbsoluteInternal(position) } },
                 artworkLoader = container.artworkLoader
             )
+            remoteServer = Y2RemoteServer(
+                logger = logger,
+                stateProvider = { Triple(snapshot, currentTrack, currentVolumePercent()) },
+                onCommandReceived = { command -> post { handleRemoteCommand(command) } },
+                onClientConnectionChanged = { connected -> post { handleRemoteClientConnection(connected) } }
+            )
+            remoteServer.start()
             queue = QueueController()
             restorePersistedState(skipQueue = safeModeManager.isSafeMode())
             // After restorePersistedState, which settles the shuffle state the effective
@@ -494,6 +504,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
                 }
                 if (::audioFocus.isInitialized) audioFocus.abandon()
                 if (::remoteControl.isInitialized) remoteControl.release()
+                if (::remoteServer.isInitialized) remoteServer.stop()
                 if (::audioEffectsController.isInitialized) audioEffectsController.release()
                 if (::engine.isInitialized) engine.release()
                 if (::dacController.isInitialized) dacController.applyDirectMode(false)
@@ -894,6 +905,114 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             }
             if (accepted) hapticController.acceptedAction()
         }
+    }
+
+    private var lastSentArtworkTrackId: Long? = null
+
+    private fun handleRemoteCommand(command: RemoteCommand) {
+        logger.info("RemoteCommand", "handling remote command: $command")
+        val accepted = when (command) {
+            is RemoteCommand.Toggle -> togglePlaybackInternal()
+            is RemoteCommand.Play -> if (snapshot.status != PlaybackStatus.PLAYING) togglePlaybackInternal() else true
+            is RemoteCommand.Pause -> {
+                if (snapshot.status in ACTIVE_STATUSES) {
+                    pauseInternal(PauseReason.USER)
+                    true
+                } else false
+            }
+            is RemoteCommand.Next -> nextInternal(userInitiated = true)
+            is RemoteCommand.Previous -> previousInternal()
+            is RemoteCommand.VolumeUp -> {
+                adjustHardwareVolumeInternal(1, "remote")
+                publishSnapshot()
+                true
+            }
+            is RemoteCommand.VolumeDown -> {
+                adjustHardwareVolumeInternal(-1, "remote")
+                publishSnapshot()
+                true
+            }
+            is RemoteCommand.SetVolume -> {
+                setVolumeFromPercent(command.percent)
+                publishSnapshot()
+                true
+            }
+            is RemoteCommand.Rewind -> seekByInternal(-command.amountMs)
+            is RemoteCommand.Forward -> seekByInternal(command.amountMs)
+            is RemoteCommand.Seek -> {
+                seekAbsoluteInternal(command.positionMs)
+                true
+            }
+        }
+        if (accepted) hapticController.acceptedAction()
+    }
+
+    private fun currentVolumePercent(): Int {
+        val stored = preferences.snapshot()
+        if (stored.volumeMode == VolumeMode.PERCEPTUAL) {
+            return VolumeCurve.percentForLevel(stored.volumeLevel)
+        }
+        val max = runCatching { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(15)
+        val cur = runCatching { audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(15)
+        if (max <= 0) return 100
+        return ((cur.toFloat() / max.toFloat()) * 100f).toInt().coerceIn(0, 100)
+    }
+
+    private fun setVolumeFromPercent(percent: Int): Boolean {
+        val stored = preferences.snapshot()
+        if (stored.volumeMode == VolumeMode.PERCEPTUAL) {
+            val targetLevel = ((percent.coerceIn(0, 100) * VolumeCurve.STEPS + 50) / 100).coerceIn(0, VolumeCurve.STEPS)
+            val updated = preferences.setVolumeLevel(targetLevel)
+            applyPreferencesInternal(updated)
+            mainHandler.post {
+                (application as Y2Application).container.appStore.dispatch(
+                    AppAction.PreferencesChanged(updated)
+                )
+            }
+            return true
+        } else {
+            val max = runCatching { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(15)
+            val target = ((percent.coerceIn(0, 100) / 100f) * max).toInt().coerceIn(0, max)
+            return runCatching { audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0) }.isSuccess
+        }
+    }
+
+    private fun sendArtworkToRemote(track: Track?) {
+        if (!::remoteServer.isInitialized || !remoteServer.isClientConnected) return
+        if (track == null) {
+            remoteServer.sendArtwork("")
+            return
+        }
+        val targetTrackId = track.id
+        val app = application as? Y2Application ?: return
+        val loader = app.container.artworkLoader
+        loader.load(track.absolutePath, 180) { _, bitmap ->
+            post {
+                if (currentTrack?.id == targetTrackId && ::remoteServer.isInitialized && remoteServer.isClientConnected) {
+                    if (bitmap != null) {
+                        val stream = java.io.ByteArrayOutputStream()
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, stream)
+                        val base64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
+                        remoteServer.sendArtwork(base64)
+                    } else {
+                        remoteServer.sendArtwork("")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleRemoteClientConnection(connected: Boolean) {
+        logger.info("RemoteServer", "remote client connected=$connected")
+        if (connected) {
+            if (snapshot.status == PlaybackStatus.PLAYING) {
+                scheduleProgress()
+            }
+            publishSnapshot()
+            lastSentArtworkTrackId = currentTrack?.id
+            sendArtworkToRemote(currentTrack)
+        }
+        stopSelfIfIdle()
     }
 
     private fun handleHardwareVolume(direction: Int) = post {
@@ -1553,7 +1672,11 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     }
 
     private fun progressInterval(): Long =
-        if (boundClients == 0) BACKGROUND_PROGRESS_INTERVAL_MS else PROGRESS_INTERVAL_MS
+        if (boundClients == 0 && (::remoteServer.isInitialized && !remoteServer.isClientConnected)) {
+            BACKGROUND_PROGRESS_INTERVAL_MS
+        } else {
+            PROGRESS_INTERVAL_MS
+        }
 
     private val progressRunnable = object : Runnable {
         override fun run() {
@@ -2214,6 +2337,13 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         playbackWakeLock.sync(value.status)
         libraryRepository.setPlaybackActive(value.status == PlaybackStatus.PLAYING)
         if (::remoteControl.isInitialized) remoteControl.update(value, currentTrack)
+        if (::remoteServer.isInitialized) {
+            remoteServer.update(value, currentTrack, currentVolumePercent())
+            if (currentTrack?.id != lastSentArtworkTrackId) {
+                lastSentArtworkTrackId = currentTrack?.id
+                sendArtworkToRemote(currentTrack)
+            }
+        }
         mainHandler.post {
             listeners.forEach { it.onPlaybackChanged(value) }
             updateNotificationIfNeeded(value)
@@ -2231,9 +2361,11 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     }
 
     private fun publishUiProgressIfBound() {
-        if (boundClients == 0) return
+        val hasRemote = ::remoteServer.isInitialized && remoteServer.isClientConnected
+        if (boundClients == 0 && !hasRemote) return
         val value = snapshot
-        mainHandler.post { listeners.forEach { it.onPlaybackChanged(value) } }
+        if (hasRemote) remoteServer.update(value, currentTrack, currentVolumePercent())
+        if (boundClients > 0) mainHandler.post { listeners.forEach { it.onPlaybackChanged(value) } }
     }
 
     private fun refreshProgressForNewClient() {
@@ -2309,8 +2441,9 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             currentTrack != null &&
             (snapshot.durationMs <= 0L || snapshot.positionMs < snapshot.durationMs) &&
             ::engine.isInitialized && engine.state in RESUMABLE_ENGINE_STATES
+        val hasRemoteClient = ::remoteServer.isInitialized && remoteServer.isClientConnected
         if (!shouldStopPlaybackService(
-                hasBoundClient = boundClients != 0,
+                hasBoundClient = boundClients != 0 || hasRemoteClient,
                 isActive = snapshot.status in ACTIVE_STATUSES,
                 hasPendingFocusResume = safetyPolicy.hasPendingFocusResume(),
                 hasResumablePausedTrack = hasResumablePausedTrack

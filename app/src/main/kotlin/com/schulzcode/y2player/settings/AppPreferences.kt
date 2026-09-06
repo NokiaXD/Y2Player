@@ -91,6 +91,13 @@ class AppPreferences(context: Context) {
     }
     fun toggleWrapLists() = updateBoolean(KEY_WRAP_LISTS, !snapshot().wrapLists)
 
+    fun setVolumeLevel(level: Int): PlayerPreferencesState {
+        val current = snapshot()
+        val safeLevel = VolumeCurve.clampLevel(level)
+        if (current.volumeLevel == safeLevel) return current
+        return commit { putInt(KEY_VOLUME_LEVEL, safeLevel) }
+    }
+
     fun adjustVolumeLevel(direction: Int): PlayerPreferencesState {
         val current = snapshot()
         if (current.volumeMode != VolumeMode.PERCEPTUAL) return current
