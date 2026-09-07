@@ -42,7 +42,7 @@ class Y2RowStateTest {
             localKeysWhileScreenOff = true,
             uiSoundEffectsEnabled = true,
             verboseDiagnostics = true,
-            lightTheme = true
+            skinId = "classic-light", lightTheme = true
         ))
         listOf("extra_track_info", "screen_off_keys", "ui_sounds", "diag_verbose", "theme").forEach {
             assertTrue("$it should be active", Y2RowState.isActive(action(it), enabled))

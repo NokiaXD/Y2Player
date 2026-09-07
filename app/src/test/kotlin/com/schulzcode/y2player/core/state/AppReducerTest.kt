@@ -926,19 +926,19 @@ class AppReducerTest {
         assertEquals(AppEffect.SetEqualizerPreset(-1), selected.effects.single())
     }
 
-    @Test fun theThemeRowOnTheDisplayScreenTogglesTheTheme() {
+    @Test fun theThemeRowOnTheDisplayScreenOpensSkins() {
         val state = selectKey(AppState(screenStack = listOf(ScreenEntry(Screen.Display))), "theme")
         assertEquals(
-            listOf(AppEffect.ToggleLightTheme),
-            AppReducer.reduce(state, AppAction.Confirm).effects
+            Screen.Skins,
+            AppReducer.reduce(state, AppAction.Confirm).state.currentScreen
         )
     }
 
     @Test fun theThemeRowReportsWhichThemeIsActive() {
         val dark = AppState(screenStack = listOf(ScreenEntry(Screen.Display)))
-        val light = dark.copy(preferences = dark.preferences.copy(lightTheme = true))
-        assertEquals("Dark", themeRowSubtitle(dark))
-        assertEquals("Light", themeRowSubtitle(light))
+        val light = dark.copy(preferences = dark.preferences.copy(skinId = "classic-light", lightTheme = true))
+        assertEquals("Classic", themeRowSubtitle(dark))
+        assertEquals("Classic Light", themeRowSubtitle(light))
     }
 
     private fun themeRowSubtitle(state: AppState): String? =

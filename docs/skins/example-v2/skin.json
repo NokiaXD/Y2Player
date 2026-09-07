@@ -1,0 +1,94 @@
+{
+  "formatVersion": 2,
+  "id": "engine-lab",
+  "name": "Engine Lab",
+  "author": "Y2Player",
+  "viewport": [480,360],
+  "font": "sans",
+  "colors": {
+    "background":"#181B25", "surface":"#292E40", "surfaceRaised":"#3A4058",
+    "primaryText":"#F5F1FF", "secondaryText":"#C0B7D4", "accent":"#D4AEFF",
+    "focusSurface":"#5B437A", "warning":"#FFAA88", "divider":"#55506B"
+  },
+  "styles": {
+    "label":{"size":14,"color":"primaryText"},
+    "caption":{"size":11,"color":"secondaryText","font":"monospace"}
+  },
+  "components": {
+    "button": {
+      "parameters":{"label":"Play","command":"playPause","id":"play","order":0},
+      "nodes":[
+        {"type":"rect","bounds":[0,0,100,44],"anchor":"stretch","radius":8,"color":"surface","action":"{param.command}","focus":{"id":"{param.id}","group":"transport","order":"{param.order}"},"states":{"focused":{"color":"focusSurface","borderColor":"accent","borderWidth":2},"pressed":{"color":"accent"}},"transitionMs":140},
+        {"type":"text","bounds":[0,0,100,44],"anchor":"stretch","text":"{param.label}","style":"label","align":"center"}
+      ]
+    },
+    "rows":[
+      {"type":"rect","bounds":[0,0,448,46],"anchor":"stretch","color":"surface","radius":5,"states":{"focused":{"color":"focusSurface"},"active":{"borderColor":"accent","borderWidth":2},"disabled":{"opacity":0.5}},"transitionMs":120},
+      {"type":"text","bounds":[10,1,426,25],"text":"{row.title}","size":17},
+      {"type":"text","bounds":[10,28,426,16],"text":"{row.subtitle}","style":"caption"}
+    ],
+    "overlays":[
+      {"type":"group","bounds":[16,250,448,72],"when":"message","children":[
+        {"type":"rect","bounds":[0,0,448,72],"color":"background","borderWidth":2,"borderColor":"warning","radius":8},
+        {"type":"text","bounds":[12,6,424,60],"text":"{message}","size":14,"lines":3}
+      ]},
+      {"type":"group","bounds":[192,126,96,96],"when":"alphabet","children":[
+        {"type":"circle","bounds":[0,0,96,96],"color":"accent"},
+        {"type":"text","bounds":[0,0,96,96],"text":"{alphabet}","align":"center","size":40,"color":"background"}
+      ]}
+    ]
+  },
+  "navigation":{"now_playing":{"initial":"play","wrap":true}},
+  "screens": {
+    "default":[
+      {"type":"text","bounds":[16,6,448,30],"text":"{screen.title}","size":22,"font":"serif","action":"back"},
+      {"type":"rows","bounds":[16,44,448,254],"rowHeight":46,"gap":6,"scrolling":"follow","children":[{"type":"component","bounds":[0,0,448,46],"asset":"rows"}]},
+      {"type":"text","bounds":[32,92,416,96],"text":"{empty.message}","size":16,"lines":3,"when":"emptyRows"},
+      {"type":"text","bounds":[16,312,340,30],"text":"{track.title}","overflow":"marquee","action":"nowPlaying"},
+      {"type":"text","bounds":[366,312,98,30],"text":"{position}","align":"right","style":"caption"},
+      {"type":"component","bounds":[0,0,480,360],"asset":"overlays"}
+    ],
+    "now_playing":[
+      {"type":"rect","bounds":[0,0,480,360],"color":"background","gradient":{"endColor":"surface","direction":"horizontal"}},
+      {"type":"progress","bounds":[16,16,188,188],"orientation":"circular","stroke":6,"color":"accent","background":"divider","seekable":true},
+      {"type":"artwork","bounds":[38,38,144,144],"imageFit":"crop","radius":72},
+      {"type":"text","bounds":[220,18,244,90],"text":"{track.title}","font":"serif","size":22,"lines":2,"lineSpacing":1.1,"verticalAlign":"top"},
+      {"type":"text","bounds":[220,114,244,25],"text":"{track.artist}","overflow":"marquee","size":16},
+      {"type":"text","bounds":[220,142,244,25],"text":"{playback.elapsed} / {playback.duration}","style":"caption"},
+      {"type":"text","bounds":[220,175,220,22],"text":"VOL {volume}% · {shuffle}","style":"caption"},
+      {"type":"progress","bounds":[453,165,10,38],"orientation":"vertical","color":"accent","background":"divider","seekable":true},
+      {"type":"group","bounds":[16,218,448,50],"layout":"row","gap":8,"children":[
+        {"type":"component","bounds":[0,0,100,50],"weight":1,"asset":"button","props":{"label":"Previous","command":"previous","id":"previous","order":0}},
+        {"type":"component","bounds":[0,0,100,50],"weight":1,"asset":"button","props":{"label":"Play / pause","id":"play","order":1}},
+        {"type":"component","bounds":[0,0,100,50],"weight":1,"asset":"button","props":{"label":"Next","command":"next","id":"next","order":2}}
+      ]},
+      {"type":"group","bounds":[16,280,448,40],"layout":"row","gap":8,"children":[
+        {"type":"component","bounds":[0,0,100,40],"weight":1,"asset":"button","props":{"label":"Volume −","command":"volumeDown","id":"quieter","order":3}},
+        {"type":"component","bounds":[0,0,100,40],"weight":1,"asset":"button","props":{"label":"Volume +","command":"volumeUp","id":"louder","order":4}},
+        {"type":"component","bounds":[0,0,100,40],"weight":1,"asset":"button","props":{"label":"Options","command":"confirm","id":"options","order":5}}
+      ]},
+      {"type":"path","bounds":[16,331,12,12],"points":[[1,0],[0,0.5],[1,1]],"stroke":2,"color":"accent"},
+      {"type":"text","bounds":[36,324,428,24],"text":"Back to library  ·  {track.codec} {track.sampleRate}","style":"caption","action":"back"},
+      {"type":"component","bounds":[0,0,480,360],"asset":"overlays"}
+    ],
+    "search":[
+      {"type":"text","bounds":[16,8,448,32],"text":"{search.query}","size":19},
+      {"type":"rows","bounds":[16,48,448,98],"rowHeight":46,"gap":6,"children":[{"type":"component","bounds":[0,0,448,46],"asset":"rows"}]},
+      {"type":"text","bounds":[24,50,432,90],"text":"{empty.message}","size":14,"lines":3,"when":"emptyRows"},
+      {"type":"keyboard","bounds":[16,164,448,180],"size":15,"keyStyle":{"gap":3,"radius":6,"focusColor":"background","focusBackground":"accent","borderColor":"divider","borderWidth":1}},
+      {"type":"component","bounds":[0,0,480,360],"asset":"overlays"}
+    ],
+    "fm_radio":[
+      {"type":"text","bounds":[16,12,448,40],"text":"FM Radio","size":24,"action":"back"},
+      {"type":"text","bounds":[16,70,448,68],"text":"{fm.frequency}","size":40,"align":"center","color":"accent"},
+      {"type":"text","bounds":[16,145,448,52],"text":"{fm.status}","size":16,"align":"center","lines":2},
+      {"type":"group","bounds":[16,220,448,50],"layout":"row","gap":8,"children":[
+        {"type":"component","bounds":[0,0,100,50],"weight":1,"asset":"button","props":{"label":"Seek down","command":"previous","id":"down"}},
+        {"type":"component","bounds":[0,0,100,50],"weight":1,"asset":"button","props":{"label":"Power","command":"confirm","id":"power"}},
+        {"type":"component","bounds":[0,0,100,50],"weight":1,"asset":"button","props":{"label":"Seek up","command":"next","id":"up"}}
+      ]},
+      {"type":"text","bounds":[16,288,448,32],"text":"Wheel tunes · Select toggles power","style":"caption","align":"center"},
+      {"type":"component","bounds":[0,0,480,360],"asset":"overlays"}
+    ]
+  }
+}

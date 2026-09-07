@@ -46,7 +46,7 @@ android {
         applicationId = "com.schulzcode.y2player"
         minSdk = 19
         targetSdk = 19
-        versionCode = 18
+        versionCode = 19
         versionName = "2.5"
 
         buildConfigField("String", "BUILD_ID", "\"$resolvedBuildId\"")
@@ -201,6 +201,7 @@ tasks.named("preBuild") { dependsOn(verifyNativeAudioStamp) }
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     // Host tests only; never packaged. Lets the screen catalogue derive from the
     // sealed hierarchy so a new screen cannot be added without being covered.
     testImplementation(kotlin("reflect"))

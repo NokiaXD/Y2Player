@@ -213,6 +213,13 @@ $RECYCLE.BIN/
 !/SOURCE_SHA256SUMS.txt
 !/docs/
 /docs/*
+!/docs/skins/
+!/theme-studio/
+/theme-studio/node_modules/
+/theme-studio/dist/
+/theme-studio/test-results/
+/theme-studio/playwright-report/
+/theme-studio/*.tsbuildinfo
 !/docs/Y2PLAYER_V2_3_RELEASE_POST.md
 !/docs/Y2PLAYER_V2_3_REDDIT_POST.md
 !/app/

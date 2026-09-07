@@ -71,6 +71,7 @@ object ScreenCatalogue {
         put(Screen.ConfirmAction(ConfirmPrompts.CLEAR_QUEUE))
         put(Screen.InterfaceSettings)
         put(Screen.LibrarySettings)
+        put(Screen.Skins)
         put(Screen.Display)
         put(Screen.Controls)
         put(Screen.Balance)

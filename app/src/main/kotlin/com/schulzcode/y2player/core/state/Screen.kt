@@ -79,6 +79,7 @@ sealed interface Screen {
     data class ConfirmAction(val key: String) : Screen
     data object InterfaceSettings : Screen
     data object LibrarySettings : Screen
+    data object Skins : Screen
     data object Display : Screen
     data object Controls : Screen
     data object Balance : Screen
@@ -162,6 +163,7 @@ val Screen.code: String get() = when (this) {
     is Screen.ConfirmAction -> "confirm_action"
     Screen.InterfaceSettings -> "interface_settings"
     Screen.LibrarySettings -> "library_settings"
+    Screen.Skins -> "skins"
     Screen.Display -> "display"
     Screen.Controls -> "controls"
     Screen.Balance -> "balance"

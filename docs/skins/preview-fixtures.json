@@ -1,0 +1,27 @@
+{
+  "lists": [
+    {"node":{"type":"rows","bounds":[10,20,300,80],"listMode":"horizontal","rowWidth":90,"rowHeight":80,"gap":10},"selected":4,"capacity":3,"first":3,"slot":2,"cell":[210,20,90,80]},
+    {"node":{"type":"rows","bounds":[0,0,300,80],"listMode":"carousel","rowWidth":90,"rowHeight":80,"gap":10},"selected":4,"capacity":3,"first":3,"slot":1,"cell":[100,0,90,80]},
+    {"node":{"type":"rows","bounds":[0,0,240,240],"listMode":"radial","columns":4,"rowWidth":40,"rowHeight":40},"selected":5,"capacity":4,"first":4,"slot":1,"cell":[200,100,40,40]},
+    {"node":{"type":"rows","bounds":[0,0,300,150],"rowHeight":50,"gap":0,"scrolling":"follow"},"selected":3,"capacity":3,"first":1,"slot":0,"cell":[0,0,300,50]}
+  ],
+  "images":[
+    {"box":[0,0,100,100],"width":200,"height":100,"fit":"fit","x":0.5,"y":0.5,"result":[0,25,100,50]},
+    {"box":[0,0,100,100],"width":200,"height":100,"fit":"crop","x":1,"y":0.5,"result":[-100,0,200,100]}
+  ],
+  "seek":[
+    {"box":[10,20,100,200],"orientation":"vertical","x":50,"y":70,"result":0.75},
+    {"box":[0,0,100,100],"orientation":"circular","x":100,"y":50,"result":0.25},
+    {"box":[10,20,100,10],"orientation":"horizontal","x":200,"y":20,"result":1}
+  ],
+  "layouts":[
+    {"node":{"type":"group","bounds":[0,0,300,100],"layout":"row","padding":10,"gap":10,"children":[{"type":"rect","bounds":[0,0,60,30]},{"type":"rect","bounds":[0,0,20,30],"weight":1},{"type":"rect","bounds":[0,0,20,30],"weight":3}]},"result":[[10,10,60,80],[80,10,50,80],[140,10,150,80]]},
+    {"node":{"type":"group","bounds":[0,0,300,100],"padding":10,"children":[{"type":"rect","bounds":[5,5,40,20],"anchor":"bottomRight"},{"type":"rect","bounds":[5,5,40,20],"anchor":"stretch"}]},"result":[[245,65,40,20],[15,15,270,70]]}
+  ],
+  "text":[
+    {"source":"One two three","width":7,"count":2,"ellipsis":true,"result":["One","two th…"]},
+    {"source":"First\nSecond","width":10,"count":2,"ellipsis":true,"result":["First","Second"]},
+    {"source":"AB😀CD","width":4,"count":1,"ellipsis":true,"result":["AB😀…"]},
+    {"source":"abcdef","width":3,"count":1,"ellipsis":false,"result":["abc"]}
+  ]
+}

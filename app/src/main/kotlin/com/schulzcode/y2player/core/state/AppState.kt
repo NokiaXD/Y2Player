@@ -84,6 +84,7 @@ data class PlayerPreferencesState(
     val keepScreenOnWhilePlaying: Boolean = false,
     val extraTrackInfo: Boolean = false,
     val showFmRadio: Boolean = false,
+    val skinId: String = "classic",
     val lightTheme: Boolean = false,
     val localKeysWhileScreenOff: Boolean = false,
     val seekWhenLocked: Boolean = false,
@@ -127,6 +128,7 @@ data class AppState(
     val diagnostics: DiagnosticsState = DiagnosticsState(),
     val backup: BackupUiState = BackupUiState(),
     val fm: FmState = FmState(),
+    val skins: com.schulzcode.y2player.skin.SkinCatalogState = com.schulzcode.y2player.skin.SkinCatalogState(),
     val safeMode: Boolean = false,
     val transientMessage: String? = null,
     val alphabetScrub: AlphabetScrubState? = null

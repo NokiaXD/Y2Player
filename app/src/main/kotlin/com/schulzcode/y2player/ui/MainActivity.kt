@@ -215,6 +215,7 @@ class MainActivity : Activity() {
         libraryRepository = container.libraryRepository
         diagnosticsRepository = container.diagnosticsRepository
         preferences = container.preferences
+        mainHandler.post { if (!destroyed) reloadSkins() }
         backupManager = UserDataBackupManager(
             database = container.database,
             preferences = preferences,
@@ -358,6 +359,27 @@ class MainActivity : Activity() {
         }
     }
 
+    private var skinsLoading = false
+
+    private fun reloadSkins() {
+        if (skinsLoading) return
+        skinsLoading = true
+        val context = applicationContext
+        backgroundExecutor.execute {
+            val result = runCatching { com.schulzcode.y2player.skin.SkinRepository.load(context) }.getOrElse {
+                com.schulzcode.y2player.skin.SkinLoadResult(emptyMap(), listOf("Skin loading failed: ${it.message}"))
+            }
+            mainHandler.post {
+                if (!destroyed) {
+                    skinsLoading = false
+                    val catalog = com.schulzcode.y2player.skin.SkinRepository.publish(result)
+                    store.dispatch(AppAction.SkinsChanged(catalog))
+                    if (catalog.errors.isNotEmpty()) showMessage("Some skins could not load. See Settings → Interface → Display → Skin.")
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         destroyed = true
         mainHandler.removeCallbacks(clearMessageRunnable)
@@ -416,7 +438,7 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
-        if (inputAllowed(KeyEvent.KEYCODE_BACK)) store.dispatch(AppAction.Back)
+        if (inputAllowed(KeyEvent.KEYCODE_BACK)) dispatchInput(AppAction.Back)
     }
 
     private fun handleEffect(effect: AppEffect) {
@@ -506,7 +528,8 @@ class MainActivity : Activity() {
             AppEffect.ToggleKeepScreenOn -> applyPlaybackPreferences(preferences.toggleKeepScreenOn())
             AppEffect.ToggleExtraTrackInfo -> applyPlaybackPreferences(preferences.toggleExtraTrackInfo())
             AppEffect.ToggleShowFmRadio -> applyPlaybackPreferences(preferences.toggleShowFmRadio())
-            AppEffect.ToggleLightTheme -> applyPlaybackPreferences(preferences.toggleLightTheme())
+            is AppEffect.SetSkin -> applyPlaybackPreferences(preferences.setSkin(effect.id))
+            AppEffect.ReloadSkins -> reloadSkins()
             is AppEffect.SetBalance -> applyPlaybackPreferences(preferences.setBalance(effect.balance))
             AppEffect.ToggleLocalKeysWhileScreenOff ->
                 applyPlaybackPreferences(preferences.toggleLocalKeysWhileScreenOff())
@@ -689,7 +712,7 @@ class MainActivity : Activity() {
         val adjustsNowPlayingVolume = action is AppAction.WheelMoved &&
             store.state.currentScreen == Screen.NowPlaying
         if (wheel) playerView.onNavigationInput()
-        val accepted = store.dispatch(action)
+        val accepted = playerView.handleSkinInput(action) || store.dispatch(action)
         if (action is AppAction.AlphabetMoved) {
             mainHandler.removeCallbacks(endAlphabetScrubRunnable)
             if (store.state.alphabetScrub != null) {

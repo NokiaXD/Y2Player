@@ -33,6 +33,8 @@ class AppPreferences(context: Context) {
         keepScreenOnWhilePlaying = boolean(KEY_KEEP_SCREEN_ON, false),
         extraTrackInfo = boolean(KEY_EXTRA_TRACK_INFO, false),
         showFmRadio = boolean(KEY_SHOW_FM_RADIO, false),
+        skinId = string(KEY_SKIN_ID, null)?.takeIf(com.schulzcode.y2player.skin.SkinIds::valid)
+            ?: if (boolean(KEY_LIGHT_THEME, false)) "classic-light" else "classic",
         lightTheme = boolean(KEY_LIGHT_THEME, false),
         localKeysWhileScreenOff = boolean(KEY_SCREEN_OFF_KEYS, false),
         seekWhenLocked = boolean(KEY_SEEK_WHEN_LOCKED, false),
@@ -64,7 +66,11 @@ class AppPreferences(context: Context) {
     fun toggleKeepScreenOn() = updateBoolean(KEY_KEEP_SCREEN_ON, !snapshot().keepScreenOnWhilePlaying)
     fun toggleExtraTrackInfo() = updateBoolean(KEY_EXTRA_TRACK_INFO, !snapshot().extraTrackInfo)
     fun toggleShowFmRadio() = updateBoolean(KEY_SHOW_FM_RADIO, !snapshot().showFmRadio)
-    fun toggleLightTheme() = updateBoolean(KEY_LIGHT_THEME, !snapshot().lightTheme)
+    fun setSkin(id: String) = commit {
+        require(com.schulzcode.y2player.skin.SkinIds.valid(id))
+        putString(KEY_SKIN_ID, id)
+        putBoolean(KEY_LIGHT_THEME, id == "classic-light")
+    }
     fun toggleLocalKeysWhileScreenOff() = updateBoolean(KEY_SCREEN_OFF_KEYS, !snapshot().localKeysWhileScreenOff)
     fun toggleSeekWhenLocked() = updateBoolean(KEY_SEEK_WHEN_LOCKED, !snapshot().seekWhenLocked)
     fun togglePauseOnDisconnect() = updateBoolean(KEY_PAUSE_ON_DISCONNECT, !snapshot().pauseOnDisconnect)
@@ -162,7 +168,8 @@ class AppPreferences(context: Context) {
             putBoolean(KEY_KEEP_SCREEN_ON, value.keepScreenOnWhilePlaying)
             putBoolean(KEY_EXTRA_TRACK_INFO, value.extraTrackInfo)
             putBoolean(KEY_SHOW_FM_RADIO, value.showFmRadio)
-            putBoolean(KEY_LIGHT_THEME, value.lightTheme)
+            putString(KEY_SKIN_ID, value.skinId)
+            putBoolean(KEY_LIGHT_THEME, value.skinId == "classic-light")
             putBoolean(KEY_SCREEN_OFF_KEYS, value.localKeysWhileScreenOff)
             putBoolean(KEY_SEEK_WHEN_LOCKED, value.seekWhenLocked)
             putBoolean(KEY_PAUSE_ON_DISCONNECT, value.pauseOnDisconnect)
@@ -232,6 +239,7 @@ class AppPreferences(context: Context) {
         private const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         private const val KEY_EXTRA_TRACK_INFO = "extra_track_info"
         private const val KEY_SHOW_FM_RADIO = "show_fm_radio"
+        private const val KEY_SKIN_ID = "skin_id"
         private const val KEY_LIGHT_THEME = "light_theme"
         private const val KEY_SCREEN_OFF_KEYS = "screen_off_keys"
         private const val KEY_SEEK_WHEN_LOCKED = "seek_when_locked"

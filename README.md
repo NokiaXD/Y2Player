@@ -460,3 +460,13 @@ Hardware-dependent changes should describe the Y2 firmware version and include d
 ## License
 
 Y2Player is available under the [MIT License](LICENSE). Copyright © 2026 Luca Schulz.
+
+## Community skins
+
+Y2Player includes three file-driven version 2 skins: **Neon Grid**,
+**Pixel Garden**, and **Studio Deck**. Choose one under Settings → Interface →
+Display → Skin. Custom skin folders go in `Y2Player/Skins` on readable internal
+storage or SD card; use **Reload Skins** after editing. Classic remains available
+as a fallback. See the [skin authoring guide](app/src/main/assets/skins/README.md),
+[version 2 reference](docs/skins/FORMAT_V2.md), and
+[Neon Grid example](app/src/main/assets/skins/neon-grid/skin.json).

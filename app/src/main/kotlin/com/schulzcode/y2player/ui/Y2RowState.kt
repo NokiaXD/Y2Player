@@ -36,7 +36,8 @@ object Y2RowState {
             key == "seek_when_locked" -> state.preferences.seekWhenLocked
             key == "ui_sounds" -> state.preferences.uiSoundEffectsEnabled
             key == "haptics" -> state.preferences.hapticLevel != HapticLevel.OFF
-            key == "theme" -> state.preferences.lightTheme
+            key == "theme" -> state.preferences.skinId != "classic"
+            key.startsWith("skin:") -> key.substringAfter(':') == state.preferences.skinId
             key == "effects_toggle" -> state.preferences.audioEffectsEnabled
             key == "bass" -> state.preferences.bassStrength > 0
             key == "loudness" -> state.preferences.loudnessGainMb > 0

@@ -149,6 +149,7 @@ object ScreenContent {
         is Screen.ConfirmAction -> "Confirm"
         Screen.InterfaceSettings -> "Interface"
         Screen.LibrarySettings -> "Library"
+        Screen.Skins -> "Skins"
         Screen.Display -> "Display"
         Screen.Controls -> "Controls"
         Screen.Balance -> "Balance"
@@ -256,6 +257,7 @@ object ScreenContent {
         is Screen.ConfirmAction -> confirmActionRows(state, screen)
         Screen.InterfaceSettings -> interfaceRows(state)
         Screen.LibrarySettings -> librarySettingsRows(state)
+        Screen.Skins -> skinRows(state)
         Screen.Display -> displayRows(state)
         Screen.Controls -> controlsRows(state)
         Screen.Balance -> balanceRows(state)
@@ -1172,7 +1174,7 @@ object ScreenContent {
 
     private fun displayRows(state: AppState): List<ScreenRow> = buildList {
         add(ScreenRow.Action("Brightness", "${state.display.brightnessPercent}%", "brightness"))
-        add(ScreenRow.Action("Theme", if (state.preferences.lightTheme) "Light" else "Dark", "theme"))
+        add(ScreenRow.Action("Skin", state.skins.name(state.preferences.skinId), "theme"))
         add(ScreenRow.Action("Screen Timeout", timeoutLabel(state.display.screenTimeoutMs), "timeout"))
         add(ScreenRow.Action("Keep Display On", if (state.preferences.keepScreenOnWhilePlaying) "While playing" else "Off", "keep_screen_on"))
         add(
@@ -1182,6 +1184,16 @@ object ScreenContent {
                 "extra_track_info"
             )
         )
+    }
+
+    private fun skinRows(state: AppState): List<ScreenRow> = buildList {
+        state.skins.available.forEach { skin ->
+            add(ScreenRow.Action(skin.name, if (state.preferences.skinId == skin.id) "Selected" else skin.author, "skin:${skin.id}"))
+        }
+        add(ScreenRow.Action("Reload Skins", "Read Y2Player/Skins again", "reload_skins"))
+        state.skins.errors.forEachIndexed { index, error ->
+            add(ScreenRow.Action("Skin could not load", error, "skin_error:$index"))
+        }
     }
 
     private fun controlsRows(state: AppState): List<ScreenRow> = buildList {

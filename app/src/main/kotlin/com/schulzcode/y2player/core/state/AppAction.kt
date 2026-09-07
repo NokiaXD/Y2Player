@@ -10,6 +10,8 @@ import com.schulzcode.y2player.diagnostics.DiagnosticsState
 import com.schulzcode.y2player.fm.FmState
 
 sealed interface AppAction {
+    data class SeekFraction(val fraction: Float) : AppAction
+    data class SkinCommand(val command: String) : AppAction
     data class WheelMoved(val delta: Int) : AppAction
     data class AlphabetMoved(val direction: Int) : AppAction
     data object EndAlphabetScrub : AppAction
@@ -38,6 +40,7 @@ sealed interface AppAction {
     data class BackupChanged(val backup: BackupUiState) : AppAction
     data class BackupImportReady(val summary: String) : AppAction
     data class FmChanged(val fm: FmState) : AppAction
+    data class SkinsChanged(val catalog: com.schulzcode.y2player.skin.SkinCatalogState) : AppAction
     data class SafeModeChanged(val enabled: Boolean) : AppAction
     data class ShowMessage(val message: String?) : AppAction
     data class SelectIndex(val index: Int) : AppAction
@@ -100,7 +103,8 @@ sealed interface AppEffect {
     data object ToggleKeepScreenOn : AppEffect
     data object ToggleExtraTrackInfo : AppEffect
     data object ToggleShowFmRadio : AppEffect
-    data object ToggleLightTheme : AppEffect
+    data class SetSkin(val id: String) : AppEffect
+    data object ReloadSkins : AppEffect
     data object ToggleLocalKeysWhileScreenOff : AppEffect
     data object ToggleSeekWhenLocked : AppEffect
     data class SetBalance(val balance: Int) : AppEffect
@@ -149,6 +153,8 @@ data class Reduction(val state: AppState, val effects: List<AppEffect> = emptyLi
 
 // R8 renames these classes, so simpleName logs as `b0` in release builds.
 val AppAction.code: String get() = when (this) {
+    is AppAction.SeekFraction -> "seek_fraction"
+    is AppAction.SkinCommand -> "skin_command"
     is AppAction.WheelMoved -> if (delta >= 0) "wheel_clockwise" else "wheel_counter_clockwise"
     is AppAction.AlphabetMoved -> if (direction >= 0) "alphabet_clockwise" else "alphabet_counter_clockwise"
     AppAction.EndAlphabetScrub -> "alphabet_end"
@@ -177,6 +183,7 @@ val AppAction.code: String get() = when (this) {
     is AppAction.BackupChanged -> "backup_changed"
     is AppAction.BackupImportReady -> "backup_import_ready"
     is AppAction.FmChanged -> "fm_changed"
+    is AppAction.SkinsChanged -> "skins_changed"
     is AppAction.SafeModeChanged -> "safe_mode_changed"
     is AppAction.ShowMessage -> "show_message"
     is AppAction.SelectIndex -> "select_index"

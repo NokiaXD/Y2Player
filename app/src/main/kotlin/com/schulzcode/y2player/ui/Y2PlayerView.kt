@@ -86,6 +86,12 @@ class Y2PlayerView(
     private var state: AppState = AppState()
 
     private var palette: Y2Palette = Y2Palette.DARK
+    private val skinAudioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+    private var skinVolumeReadMs = 0L
+    private var skinVolumePercent: Int? = null
+    private val skinRenderer = com.schulzcode.y2player.skin.SkinRenderer(dispatch)
+    private fun activeSkin() = if (state.safeMode) null else com.schulzcode.y2player.skin.SkinRepository.skins[state.preferences.skinId]
+
 
     private fun applyPalette(lightTheme: Boolean): Boolean {
         val next = Y2Palette.of(lightTheme)
@@ -193,6 +199,7 @@ class Y2PlayerView(
     fun setTextAnimationsVisible(visible: Boolean) {
         if (textAnimationsVisible == visible) return
         textAnimationsVisible = visible
+        if (activeSkin() != null) invalidate()
         updateTextScrollActivity()
         updateSleepTimerCountdownActivity()
     }
@@ -260,7 +267,8 @@ class Y2PlayerView(
             openingRadial -> startRadialAnimation(opening = true)
             closingRadial -> startRadialAnimation(opening = false)
         }
-        val themeChanged = applyPalette(newState.preferences.lightTheme)
+        val themeChanged = applyPalette(newState.preferences.skinId == "classic-light") ||
+            oldState.preferences.skinId != newState.preferences.skinId || oldState.skins.revision != newState.skins.revision
         val progressOnly = !themeChanged && isProgressOnlyUpdate(oldState.playback, newState.playback) &&
             oldState.copy(playback = newState.playback) == newState
         val sameScreenPath = oldState.screenStack.size == newState.screenStack.size &&
@@ -271,8 +279,20 @@ class Y2PlayerView(
                 alphabetScrub = newState.alphabetScrub
             ) == newState
 
+        if (!progressOnly) skinRenderer.invalidateInput()
         state = newState
         updateSleepTimerCountdownActivity(refreshRows = false)
+        if (activeSkin() != null) {
+            stopTextScrollCallbacks()
+            if (!progressOnly) {
+                rows = rowsForState(newState)
+                requestArtwork()
+                updatePresentationCache()
+            }
+            updateContentDescription(newState)
+            invalidate()
+            return
+        }
         if (selectionOnly) {
             if (ensureSelectionVisible()) requestVisibleRowArtworks()
             updateFooterPosition()
@@ -351,6 +371,7 @@ class Y2PlayerView(
     }
 
     private fun updateTextScrollActivity() {
+        if (activeSkin() != null) { stopTextScrollCallbacks(); return }
         val active = attached && textAnimationsVisible &&
             windowVisibility == VISIBLE && visibility == VISIBLE
         val changed = setTextScrollersActive(active, SystemClock.uptimeMillis())
@@ -451,6 +472,7 @@ class Y2PlayerView(
     }
 
     private fun invalidateTextScrollTarget() {
+        if (activeSkin() != null) { invalidate(); return }
         if (isNowPlayingSurface()) {
             invalidate(0, headerHeight.toInt(), width, (height - footerHeight).toInt())
             return
@@ -468,6 +490,20 @@ class Y2PlayerView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        activeSkin()?.let {
+            val now = SystemClock.uptimeMillis()
+            if (now - skinVolumeReadMs >= 1000L) {
+                skinVolumeReadMs = now
+                skinVolumePercent = runCatching {
+                    100 * skinAudioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) /
+                        skinAudioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                }.getOrNull()
+            }
+            skinRenderer.animationsEnabled = attached && textAnimationsVisible
+            skinRenderer.draw(canvas, width, height, it, state, rows, artwork, skinVolumePercent)
+            if (skinRenderer.needsAnimation && attached && textAnimationsVisible) postInvalidateDelayed(33L)
+            return
+        }
         canvas.drawColor(palette.background)
         drawHeader(canvas)
         if (state.currentScreen == Screen.FmRadio) {
@@ -513,7 +549,23 @@ class Y2PlayerView(
         (if (state.currentScreen is Screen.Search) height.toFloat() - SEARCH_KEYBOARD_HEIGHT_DP * density
         else height - footerHeight) - if (cachedMessageSource != null) 66f * density else 0f
 
+    fun handleSkinInput(action: AppAction): Boolean {
+        if (activeSkin() == null) return false
+        val consumed = skinRenderer.handleInput(action)
+        if (consumed) invalidate()
+        return consumed
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (activeSkin() != null) {
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> skinRenderer.press(event.x, event.y)
+                MotionEvent.ACTION_UP -> skinRenderer.release(event.x, event.y)
+                MotionEvent.ACTION_CANCEL -> skinRenderer.cancel()
+            }
+            invalidate()
+            return true
+        }
         return when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 pendingTouchActive = true
@@ -2193,7 +2245,7 @@ class Y2PlayerView(
                 ) { loadedPath, bitmap ->
                     if (loadedPath == artworkPath && identity == artworkIdentity) {
                         artwork = bitmap
-                        invalidate(0, headerHeight.toInt(), width, height)
+                        invalidate()
                     }
                 }
             }

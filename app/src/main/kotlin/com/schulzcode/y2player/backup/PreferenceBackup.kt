@@ -25,6 +25,7 @@ object PreferenceBackup {
         "keep_screen_on" to value.keepScreenOnWhilePlaying.toString(),
         "extra_track_info" to value.extraTrackInfo.toString(),
         "show_fm_radio" to value.showFmRadio.toString(),
+        "skin_id" to value.skinId,
         "light_theme" to value.lightTheme.toString(),
         "screen_off_keys" to value.localKeysWhileScreenOff.toString(),
         "seek_when_locked" to value.seekWhenLocked.toString(),
@@ -98,6 +99,8 @@ object PreferenceBackup {
                     else -> throw IllegalArgumentException("Invalid show_fm_radio setting")
                 }
             } ?: false,
+            skinId = values["skin_id"]?.also { require(com.schulzcode.y2player.skin.SkinIds.valid(it)) { "Invalid skin_id" } }
+                ?: if (boolean("light_theme")) "classic-light" else "classic",
             lightTheme = boolean("light_theme"),
             localKeysWhileScreenOff = boolean("screen_off_keys"),
             seekWhenLocked = values["seek_when_locked"]?.let {
@@ -134,6 +137,6 @@ object PreferenceBackup {
         )
     }
 
-    private val OPTIONAL_KEYS = setOf("album_sort_order", "year_sort_order", "show_fm_radio", "seek_when_locked")
+    private val OPTIONAL_KEYS = setOf("album_sort_order", "year_sort_order", "show_fm_radio", "seek_when_locked", "skin_id")
     private val REQUIRED_KEYS = encode(PlayerPreferencesState()).keys - OPTIONAL_KEYS
 }

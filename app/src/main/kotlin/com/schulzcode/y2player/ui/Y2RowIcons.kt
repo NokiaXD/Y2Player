@@ -99,7 +99,7 @@ object Y2RowIcons {
         "bass", "loudness" -> Y2Icon.EQUALIZER
         "audio_quality", "output_information" -> Y2Icon.DAC
         "bluetooth", "bt_toggle" -> Y2Icon.BLUETOOTH
-        "bt_scan", "bt_refresh" -> Y2Icon.REFRESH
+        "bt_scan", "bt_refresh", "reload_skins" -> Y2Icon.REFRESH
 
         "interface" -> Y2Icon.SLIDERS
         "display", "brightness", "theme", "timeout", "keep_screen_on" -> Y2Icon.DISPLAY
@@ -158,6 +158,8 @@ object Y2RowIcons {
         key.startsWith("bt_device_activate:") -> Y2Icon.BLUETOOTH
         key.startsWith("bt_device_forget:") -> Y2Icon.REMOVE
         key.startsWith("bt_device:") -> Y2Icon.BLUETOOTH
+        key.startsWith("skin:") -> Y2Icon.DISPLAY
+        key.startsWith("skin_error:") -> Y2Icon.WARNING
         key.startsWith("storage:") -> Y2Icon.STORAGE
         key.startsWith("sort:") -> Y2Icon.SORT
         key.startsWith("balance:") -> Y2Icon.VOLUME

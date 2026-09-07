@@ -1,0 +1,10 @@
+{
+  "name": "Y2ThemeStudio",
+  "short_name": "Y2Themes",
+  "description": "Design, preview, validate, and export Y2Player themes.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090d12",
+  "theme_color": "#0b1017",
+  "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

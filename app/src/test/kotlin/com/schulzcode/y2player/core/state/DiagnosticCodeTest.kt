@@ -70,7 +70,7 @@ class DiagnosticCodeTest {
             Screen.PlaybackInterruptions, Screen.SoundEffects, Screen.EqualizerSettings,
             Screen.EqualizerPresets, Screen.OutputInformation, Screen.EqualizerBands,
             Screen.EqualizerBandLevel(0), Screen.SortOrder,
-            Screen.Bluetooth, Screen.InterfaceSettings, Screen.LibrarySettings, Screen.Display,
+            Screen.Bluetooth, Screen.InterfaceSettings, Screen.LibrarySettings, Screen.Skins, Screen.Display,
             Screen.Controls, Screen.Balance, Screen.Brightness, Screen.ScreenTimeout, Screen.Storage,
             Screen.PlaybackHistory, Screen.System, Screen.Diagnostics, Screen.About,
             Screen.QueueManagement, Screen.QueueMove(1, 1), Screen.Reset,

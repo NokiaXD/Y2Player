@@ -17,6 +17,14 @@ import com.schulzcode.y2player.playback.AudioBalance
 object AppReducer {
     private const val MAX_SEARCH_QUERY_LENGTH = 64
     fun reduce(state: AppState, action: AppAction): Reduction = when (action) {
+        is AppAction.SeekFraction -> if (state.currentScreen is Screen.Search || state.currentScreen == Screen.FmRadio ||
+            !action.fraction.isFinite() || state.playback.durationMs <= 0 || state.playback.currentTrackId == null) Reduction(state)
+            else Reduction(state, listOf(SeekBy((state.playback.durationMs * action.fraction.coerceIn(0f, 1f).toDouble()).toLong() - state.playback.positionMs)))
+        is AppAction.SkinCommand -> if (state.currentScreen is Screen.Search || state.currentScreen == Screen.FmRadio) Reduction(state)
+            else Reduction(state, when (action.command) {
+                "volumeUp" -> listOf(AdjustVolume(1)); "volumeDown" -> listOf(AdjustVolume(-1))
+                "shuffle" -> listOf(ToggleShuffle); "repeat" -> listOf(CycleRepeat); else -> emptyList()
+            })
         is AppAction.WheelMoved -> if (state.currentScreen is Screen.Search) moveSearch(state, action.delta) else moveSelection(clearAlphabetScrub(state), action.delta)
         is AppAction.AlphabetMoved -> moveAlphabet(state, action.direction)
         AppAction.EndAlphabetScrub -> Reduction(clearAlphabetScrub(state))
@@ -65,6 +73,7 @@ object AppReducer {
             )
         )
         is AppAction.FmChanged -> Reduction(state.copy(fm = action.fm))
+        is AppAction.SkinsChanged -> Reduction(preserveSelection(state, state.copy(skins = action.catalog)))
         is AppAction.SafeModeChanged -> Reduction(state.copy(safeMode = action.enabled))
         is AppAction.ShowMessage -> Reduction(state.copy(transientMessage = action.message))
         is AppAction.SelectIndex -> if (state.currentScreen is Screen.Search) focusSearchResult(state, action.index) else Reduction(normalizeSelection(setSelected(clearAlphabetScrub(state), action.index.coerceAtLeast(0))))
@@ -281,6 +290,7 @@ object AppReducer {
             is Screen.ConfirmAction -> confirmConfirmAction(state, screen, row)
             Screen.InterfaceSettings -> confirmInterfaceSettings(state, row)
             Screen.LibrarySettings -> confirmLibrarySettings(state, row)
+            Screen.Skins -> confirmSkins(state, row)
             Screen.Display -> confirmDisplay(state, row)
             Screen.Controls -> confirmControls(state, row)
             Screen.Balance -> confirmBalance(state, row)
@@ -713,9 +723,18 @@ object AppReducer {
             "timeout" -> push(state, Screen.ScreenTimeout)
             "keep_screen_on" -> Reduction(state, listOf(ToggleKeepScreenOn))
             "extra_track_info" -> Reduction(state, listOf(ToggleExtraTrackInfo))
-            "theme" -> Reduction(state, listOf(ToggleLightTheme))
+            "theme" -> push(state, Screen.Skins)
             else -> Reduction(state)
         }
+    }
+
+    private fun confirmSkins(state: AppState, row: ScreenRow): Reduction {
+        val key = (row as? Action)?.key ?: return Reduction(state)
+        if (key.startsWith("skin_error:")) return Reduction(state.copy(transientMessage = state.skins.errors.getOrNull(key.substringAfter(':').toIntOrNull() ?: -1)))
+        if (key == "reload_skins") return Reduction(state, listOf(ReloadSkins))
+        val id = key.removePrefix("skin:")
+        return if (key.startsWith("skin:") && state.skins.available.any { it.id == id })
+            Reduction(state, listOf(SetSkin(id))) else Reduction(state)
     }
 
     private fun confirmArtistAlbums(state: AppState, screen: Screen.ArtistAlbums, row: ScreenRow): Reduction = when {
