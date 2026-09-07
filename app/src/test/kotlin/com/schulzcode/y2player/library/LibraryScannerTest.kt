@@ -85,6 +85,23 @@ class LibraryScannerTest {
         } finally { root.deleteRecursively() }
     }
 
+    @Test fun m4bAudiobooksAreIndexedCaseInsensitively() {
+        val root = File(System.getProperty("java.io.tmpdir"), "y2-m4b-${System.nanoTime()}")
+        val book = File(root, "Audiobooks/Test Book").apply { mkdirs() }
+        try {
+            val source = File(book, "Complete Book.M4B").apply { writeBytes(ByteArray(4_096) { 1 }) }
+            val batches = ArrayList<ScannedFile>()
+            val outcome = scanner().scan(
+                StorageRoot("internal", root), { emptyMap() }, ScanCancellation(), { batches += it }, { _, _ -> }
+            )
+
+            assertTrue(outcome.complete)
+            assertEquals(1, outcome.processedFiles)
+            assertEquals(source.absolutePath, batches.single().absolutePath)
+            assertTrue(batches.single().changedDraft?.relativePath?.endsWith("Complete Book.M4B") == true)
+        } finally { root.deleteRecursively() }
+    }
+
     private fun volumeOf(count: Int, bytes: Int = 1_024): File {
         val root = File(System.getProperty("java.io.tmpdir"), "y2-cost-${System.nanoTime()}")
         File(root, "Music").apply { mkdirs() }.let { dir ->

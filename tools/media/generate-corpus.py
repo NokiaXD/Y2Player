@@ -91,6 +91,12 @@ FORMATS: dict[str, FormatDefinition] = {
         "stream",
         frozenset(set(FULL_TAGS) - {"replaygain_track_gain", "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak"}),
     ),
+    "m4b_aac": FormatDefinition(
+        "m4b_aac", ".m4b", "aac", "mov,mp4,m4a,3gp,3g2,mj2",
+        ("-c:a", "aac", "-b:a", "192k"),
+        "stream",
+        frozenset(set(FULL_TAGS) - {"replaygain_track_gain", "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak"}),
+    ),
     "adts_aac": FormatDefinition(
         "adts_aac", ".aac", "aac", "aac", ("-c:a", "aac", "-b:a", "128k", "-f", "adts"), "none",
         frozenset(),

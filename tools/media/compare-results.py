@@ -118,7 +118,7 @@ def compare(manifest: dict[str, Any], actual: dict[str, Any]) -> dict[str, Any]:
 
         should_store = Path(fixture["path"]).suffix.lower() in {
             ".mp3", ".flac", ".wav", ".wave", ".ogg", ".oga", ".opus",
-            ".m4a", ".m4r", ".aac", ".alac", ".aif", ".aiff", ".aifc",
+            ".m4a", ".m4b", ".m4r", ".aac", ".alac", ".aif", ".aiff", ".aifc",
         } and fixture["sizeBytes"] > 0
         if should_store and actual.get("scan") is not None and track is None:
             problems.append("scanner/database row missing")

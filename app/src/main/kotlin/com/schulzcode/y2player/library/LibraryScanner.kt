@@ -316,7 +316,7 @@ class LibraryScanner(private val metadataReader: MetadataReader = MetadataReader
         val PLAYLIST_EXTENSIONS = setOf("m3u", "m3u8")
         val SUPPORTED_EXTENSIONS = setOf(
             "mp3", "flac", "wav", "wave", "ogg", "oga", "opus",
-            "m4a", "m4r", "aac", "alac", "aif", "aiff", "aifc"
+            "m4a", "m4b", "m4r", "aac", "alac", "aif", "aiff", "aifc"
         )
     }
 }

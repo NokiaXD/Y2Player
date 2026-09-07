@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `.m4b` audiobook indexing and AAC/ALAC playback through the existing FFmpeg MOV/MP4 path.
+
 ## 2.5 — FM radio and unified search
 
 - Added FM Radio support for the built-in MediaTek MT6627 tuner.

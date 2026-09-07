@@ -7,6 +7,9 @@ class AudioCodecSupportTest {
     @Test fun alacAndAacInTheSameContainerAreSupported() {
         assertEquals(CodecSupport.SUPPORTED, AudioCodecSupport.of("audio/mp4a-latm", "m4a"))
         assertEquals(CodecSupport.SUPPORTED, AudioCodecSupport.of("audio/alac", "m4a"))
+        assertEquals(CodecSupport.SUPPORTED, AudioCodecSupport.of("audio/mp4a-latm", "m4b"))
+        assertEquals(CodecSupport.SUPPORTED, AudioCodecSupport.of("audio/alac", "m4b"))
+        assertEquals(CodecSupport.SUPPORTED, AudioCodecSupport.of(null, "m4b"))
     }
 
     @Test fun vorbisAndOpusAreBothPlayableFromAnOggContainer() {

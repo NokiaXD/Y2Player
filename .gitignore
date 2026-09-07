@@ -213,6 +213,7 @@ $RECYCLE.BIN/
 !/SOURCE_SHA256SUMS.txt
 !/docs/
 /docs/*
+!/docs/FORMAT_SUPPORT_MATRIX.md
 !/docs/skins/
 !/theme-studio/
 /theme-studio/node_modules/
