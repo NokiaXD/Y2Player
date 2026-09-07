@@ -326,7 +326,7 @@ object AudioCodecSupport {
     )
 
     internal val SUPPORTED_EXTENSIONS = setOf(
-        "mp3", "m4a", "m4r", "alac", "aac", "flac",
+        "mp3", "m4a", "m4b", "m4r", "alac", "aac", "flac",
         "wav", "wave", "ogg", "oga", "opus", "aif", "aiff", "aifc"
     )
 

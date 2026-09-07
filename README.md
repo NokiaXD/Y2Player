@@ -20,7 +20,7 @@ The diagnostics log is especially helpful because many playback, audio-effect, B
 
 - Browse local music by **Songs, Albums, Artists, Genres, Years, Folders, Playlists, Favorites, and Recently Played**.
 - Keep your place in **Audiobooks**, which are grouped by folder and resume at the minute you stopped.
-- Decode every advertised format through one pinned FFmpeg engine, including MP3, AAC/M4A, ALAC/M4A, FLAC, WAV/PCM, AIFF/PCM, Ogg Vorbis, and Opus.
+- Decode every advertised format through one pinned FFmpeg engine, including MP3, AAC/M4A/M4B, ALAC/M4A/M4B, FLAC, WAV/PCM, AIFF/PCM, Ogg Vorbis, and Opus.
 - Play individual tracks, selected batches, or complete collections and manage an explicit Up Next queue with Play Next, reordering, and removal.
 - Use repeat-one/repeat-all, configurable seeking, playback resume, gapless transitions, crossfade, and resume fades.
 - Set a sleep timer for 15, 30, or 60 minutes, or stop at the end of the current track, album, or queue.
@@ -208,7 +208,7 @@ Every playable format uses the same pinned FFmpeg engine. The scanner, playback 
 | --- | --- | --- |
 | `.mp3` | MP3 | Playable |
 | `.aac` | ADTS AAC-LC | Playable |
-| `.m4a`, `.m4r` | AAC-LC or ALAC in MOV/MP4 | Playable |
+| `.m4a`, `.m4b`, `.m4r` | AAC-LC or ALAC in MOV/MP4 | Playable |
 | `.flac` | FLAC | Playable |
 | `.wav`, `.wave` | Allowlisted integer/float PCM | Playable |
 | `.ogg`, `.oga` | Vorbis or Opus | Playable |

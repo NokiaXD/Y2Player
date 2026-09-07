@@ -71,6 +71,14 @@ class FfmpegBuildCapabilitiesTest {
         assertTrue("pcm_s16be" in AudioCodecSupport.DECODERS)
     }
 
+    @Test fun m4bIsReachableThroughEveryLayer() {
+        assertTrue("scanner must index .m4b", "m4b" in LibraryScanner.SUPPORTED_EXTENSIONS)
+        assertEquals(CodecSupport.SUPPORTED, AudioCodecSupport.of(null, "m4b"))
+        assertTrue("mov demuxer", "mov" in AudioCodecSupport.DEMUXERS)
+        assertTrue("aac decoder", "aac" in AudioCodecSupport.DECODERS)
+        assertTrue("alac decoder", "alac" in AudioCodecSupport.DECODERS)
+    }
+
     private fun flagValues(flag: String): Set<String> {
         val script = buildScript().readText()
         val match = Regex("--$flag=([A-Za-z0-9_,]+)").find(script)
