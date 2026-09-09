@@ -11,7 +11,7 @@ enum class Y2Icon {
     ACTION, REFRESH, HEADPHONES, SPEAKER, DISCONNECTED, UNKNOWN, CHEVRON, PLAY, PAUSE,
     PREVIOUS, NEXT, CHECK, PREPARING, WARNING, SHUFFLE, REPEAT, TIMER, DAC,
     MUSIC, BOOK, LIBRARY, SLIDERS, VOLUME, EQUALIZER, CROSSFADE, HISTORY, REMOVE, SYSTEM, WHEEL,
-    CHAPTERS, SEARCH
+    CHAPTERS, SEARCH, PHONE
 }
 
 class Y2IconPainter(private val paint: Paint, density: Float) {
@@ -83,9 +83,17 @@ class Y2IconPainter(private val paint: Paint, density: Float) {
             Y2Icon.REPEAT -> drawRepeat(canvas, left, top, size)
             Y2Icon.TIMER -> drawTimer(canvas, left, top, size)
             Y2Icon.DAC -> drawDac(canvas, left, top, size)
+            Y2Icon.PHONE -> drawPhone(canvas, left, top, size)
         }
         paint.style = Paint.Style.FILL
         paint.strokeCap = Paint.Cap.BUTT
+    }
+
+    private fun drawPhone(canvas: Canvas, x: Float, y: Float, s: Float) {
+        rect.set(x + s * .28f, y + s * .12f, x + s * .72f, y + s * .88f)
+        canvas.drawRoundRect(rect, s * .08f, s * .08f, paint)
+        canvas.drawLine(x + s * .42f, y + s * .20f, x + s * .58f, y + s * .20f, paint)
+        canvas.drawCircle(x + s * .50f, y + s * .79f, s * .03f, paint)
     }
 
     private fun drawSong(canvas: Canvas, x: Float, y: Float, s: Float) {

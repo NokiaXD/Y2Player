@@ -273,6 +273,7 @@ object AppReducer {
             Screen.SleepTimer -> confirmSleepTimer(state, row)
             Screen.Audio -> confirmAudio(state, row)
             Screen.Settings -> confirmSettings(state, row)
+            Screen.RemoteControlSettings -> confirmRemoteControlSettings(state, row)
             Screen.PlaybackTransitions, Screen.PlaybackSeeking, Screen.PlaybackVolume,
             Screen.PlaybackInterruptions -> confirmPlaybackPreference(state, row)
             Screen.SoundEffects -> confirmSoundEffects(state, row)
@@ -453,11 +454,25 @@ object AppReducer {
         return when (key) {
             "audio" -> push(state, Screen.Audio)
             "bluetooth" -> push(state, Screen.Bluetooth)
+            "remote_settings" -> push(state, Screen.RemoteControlSettings)
             "interface" -> push(state, Screen.InterfaceSettings)
             // The Listening History subtitle is read here, so the count has to be
             // fetched on the way in rather than when that row is pressed.
             "library_settings" -> Reduction(pushState(state, Screen.LibrarySettings), listOf(RefreshPlaybackHistory))
             "system" -> push(state, Screen.System)
+            else -> Reduction(state)
+        }
+    }
+
+    private fun confirmRemoteControlSettings(state: AppState, row: ScreenRow): Reduction {
+        val key = (row as? Action)?.key ?: return Reduction(state)
+        return when (key) {
+            "remote_server_toggle" -> Reduction(state, listOf(ToggleRemoteServer))
+            "remote_disconnect" -> Reduction(state, listOf(DisconnectRemoteClient))
+            "remote_discoverable" -> Reduction(state, listOf(MakeDeviceDiscoverable))
+            "remote_share_library" -> Reduction(state, listOf(ToggleRemoteShareLibrary))
+            "remote_share_playlists" -> Reduction(state, listOf(ToggleRemoteSharePlaylists))
+            "remote_share_queue" -> Reduction(state, listOf(ToggleRemoteShareQueue))
             else -> Reduction(state)
         }
     }

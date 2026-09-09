@@ -502,6 +502,44 @@ class MainActivity : Activity() {
             is AppEffect.ActivateBluetoothDevice -> showOperation(bluetoothController.activateDevice(effect.address))
             is AppEffect.ForgetBluetoothDevice -> showOperation(bluetoothController.forgetDevice(effect.address))
 
+            AppEffect.ToggleRemoteServer -> {
+                val value = preferences.toggleRemoteServerEnabled()
+                applyPlaybackPreferences(value)
+                playbackBinder?.setRemoteServerEnabled(value.remoteServerEnabled)
+                showMessage(if (value.remoteServerEnabled) "Remote server enabled" else "Remote server disabled")
+            }
+            AppEffect.DisconnectRemoteClient -> {
+                playbackBinder?.disconnectRemoteClient()
+                showMessage("Remote phone disconnected")
+            }
+            AppEffect.MakeDeviceDiscoverable -> {
+                val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                if (adapter == null) {
+                    showMessage("Bluetooth unavailable")
+                } else {
+                    val intent = Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                        putExtra(android.bluetooth.BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                    }
+                    startActivity(intent)
+                    showMessage("Player discoverable for 120s")
+                }
+            }
+            AppEffect.ToggleRemoteShareLibrary -> {
+                val value = preferences.toggleRemoteShareLibrary()
+                applyPlaybackPreferences(value)
+                showMessage(if (value.remoteShareLibrary) "Sharing library with phone" else "Library sharing disabled")
+            }
+            AppEffect.ToggleRemoteSharePlaylists -> {
+                val value = preferences.toggleRemoteSharePlaylists()
+                applyPlaybackPreferences(value)
+                showMessage(if (value.remoteSharePlaylists) "Sharing playlists with phone" else "Playlist sharing disabled")
+            }
+            AppEffect.ToggleRemoteShareQueue -> {
+                val value = preferences.toggleRemoteShareQueue()
+                applyPlaybackPreferences(value)
+                showMessage(if (value.remoteShareQueue) "Sharing queue with phone" else "Queue sharing disabled")
+            }
+
             is AppEffect.SetBrightness -> {
                 val message = displayController.setBrightness(effect.percent)
                 store.dispatch(AppAction.DisplayChanged(displayController.snapshot()))

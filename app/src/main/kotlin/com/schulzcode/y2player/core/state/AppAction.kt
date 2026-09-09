@@ -96,6 +96,13 @@ sealed interface AppEffect {
     data class ActivateBluetoothDevice(val address: String) : AppEffect
     data class ForgetBluetoothDevice(val address: String) : AppEffect
 
+    data object ToggleRemoteServer : AppEffect
+    data object DisconnectRemoteClient : AppEffect
+    data object MakeDeviceDiscoverable : AppEffect
+    data object ToggleRemoteShareLibrary : AppEffect
+    data object ToggleRemoteSharePlaylists : AppEffect
+    data object ToggleRemoteShareQueue : AppEffect
+
     data class SetBrightness(val percent: Int) : AppEffect
     data class SetScreenTimeout(val timeoutMs: Int) : AppEffect
     data object ToggleUiSoundEffects : AppEffect

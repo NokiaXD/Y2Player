@@ -143,5 +143,6 @@ data class PlaybackSnapshot(
     val sleepTimerRemainingMs: Long? = null,
     val outputRoute: AudioOutputRoute = AudioOutputRoute.UNKNOWN,
     val audioEffects: AudioEffectsState = AudioEffectsState(),
-    val dac: DacState = DacState()
+    val dac: DacState = DacState(),
+    val remoteClientConnected: Boolean = false
 )

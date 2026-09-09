@@ -107,7 +107,11 @@ data class PlayerPreferencesState(
     val equalizerBandLevelsMb: List<Int> = emptyList(),
     val bassStrength: Int = 0,
     val loudnessGainMb: Int = 0,
-    val balance: Int = AudioBalance.CENTRE
+    val balance: Int = AudioBalance.CENTRE,
+    val remoteServerEnabled: Boolean = true,
+    val remoteShareLibrary: Boolean = true,
+    val remoteSharePlaylists: Boolean = true,
+    val remoteShareQueue: Boolean = true
 )
 
 fun isProgressOnlyUpdate(previous: PlaybackSnapshot, current: PlaybackSnapshot): Boolean =

@@ -34,7 +34,8 @@ interface PlaybackQueueProxy {
 class RemoteRequestHandlers(
     private val libraryRepository: LibraryRepository,
     private val artworkLoader: AlbumArtworkLoader,
-    private val queueProxy: PlaybackQueueProxy?
+    private val queueProxy: PlaybackQueueProxy?,
+    private val preferencesProvider: () -> com.schulzcode.y2player.core.state.PlayerPreferencesState = { com.schulzcode.y2player.core.state.PlayerPreferencesState() }
 ) {
 
     private data class PageCacheKey(val scope: String, val sort: String, val query: String)
@@ -73,6 +74,14 @@ class RemoteRequestHandlers(
     }
 
     fun handleLibraryPage(req: RemoteMessage.LibraryPage): RemoteMessage.LibraryPageResult {
+        if (!preferencesProvider().remoteShareLibrary) {
+            return RemoteMessage.LibraryPageResult(
+                requestId = req.requestId,
+                total = -1,
+                hasMore = false,
+                rows = emptyList()
+            )
+        }
         val cacheKey = PageCacheKey(req.scope, req.sort, req.query.trim().lowercase())
         val sorted = pageCache.getOrPut(cacheKey) {
             val snapshot = libraryRepository.snapshot()
@@ -109,6 +118,14 @@ class RemoteRequestHandlers(
     }
 
     fun handleLibrarySummary(req: RemoteMessage.LibrarySummaryRequest): RemoteMessage.LibrarySummary {
+        if (!preferencesProvider().remoteShareLibrary) {
+            return RemoteMessage.LibrarySummary(
+                genres = emptyList(),
+                years = emptyList(),
+                total = -1,
+                requestId = req.requestId
+            )
+        }
         val snapshot = libraryRepository.snapshot()
         val org = LibraryOrganization(snapshot.tracks)
 
@@ -127,6 +144,16 @@ class RemoteRequestHandlers(
         req: RemoteMessage.LibraryArtworkRequest,
         onComplete: (RemoteMessage.LibraryArtworkResult) -> Unit
     ) {
+        if (!preferencesProvider().remoteShareLibrary) {
+            onComplete(RemoteMessage.LibraryArtworkResult(
+                trackId = req.trackId,
+                base64 = "",
+                width = 0,
+                height = 0,
+                requestId = req.requestId
+            ))
+            return
+        }
         val track = libraryRepository.findTrack(req.trackId)
         if (track == null || !track.hasArtwork) {
             onComplete(RemoteMessage.LibraryArtworkResult(
@@ -164,12 +191,24 @@ class RemoteRequestHandlers(
     }
 
     fun handlePlaylistsList(req: RemoteMessage.PlaylistsListRequest): RemoteMessage.PlaylistsList {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsList(items = emptyList(), total = -1, requestId = req.requestId)
+        }
         val snapshot = libraryRepository.snapshot()
         val items = snapshot.playlists.map { PlaylistRow(it.id, it.name, it.trackCount) }
-        return RemoteMessage.PlaylistsList(items = items, requestId = req.requestId)
+        return RemoteMessage.PlaylistsList(items = items, total = items.size, requestId = req.requestId)
     }
 
     fun handlePlaylistsTracks(req: RemoteMessage.PlaylistsTracksRequest): RemoteMessage.PlaylistsTracks {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsTracks(
+                playlistId = req.playlistId,
+                rows = emptyList(),
+                total = -1,
+                hasMore = false,
+                requestId = req.requestId
+            )
+        }
         val snapshot = libraryRepository.snapshot()
         val trackIds = snapshot.playlistTrackIds[req.playlistId].orEmpty()
         val tracks = trackIds.mapNotNull { libraryRepository.findTrack(it) }
@@ -189,6 +228,9 @@ class RemoteRequestHandlers(
     }
 
     fun handlePlaylistsCreate(req: RemoteMessage.PlaylistsCreateRequest): RemoteMessage.PlaylistsMutate {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsMutate(ok = false, playlist = null, requestId = req.requestId)
+        }
         libraryRepository.createPlaylist(req.name)
         val updated = libraryRepository.snapshot().playlists.firstOrNull { it.name == req.name }
         return RemoteMessage.PlaylistsMutate(
@@ -199,6 +241,9 @@ class RemoteRequestHandlers(
     }
 
     fun handlePlaylistsRename(req: RemoteMessage.PlaylistsRenameRequest): RemoteMessage.PlaylistsMutate {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsMutate(ok = false, playlist = null, requestId = req.requestId)
+        }
         libraryRepository.renamePlaylist(req.playlistId, req.name)
         val updated = libraryRepository.snapshot().playlists.firstOrNull { it.id == req.playlistId }
         return RemoteMessage.PlaylistsMutate(
@@ -209,6 +254,9 @@ class RemoteRequestHandlers(
     }
 
     fun handlePlaylistsDelete(req: RemoteMessage.PlaylistsDeleteRequest): RemoteMessage.PlaylistsMutate {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsMutate(ok = false, playlist = null, requestId = req.requestId)
+        }
         libraryRepository.deletePlaylist(req.playlistId)
         return RemoteMessage.PlaylistsMutate(
             ok = true,
@@ -218,6 +266,9 @@ class RemoteRequestHandlers(
     }
 
     fun handlePlaylistsAddTrack(req: RemoteMessage.PlaylistsAddTrackRequest): RemoteMessage.PlaylistsMutate {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsMutate(ok = false, playlist = null, requestId = req.requestId)
+        }
         libraryRepository.addTrackToPlaylist(req.playlistId, req.trackId)
         val updated = libraryRepository.snapshot().playlists.firstOrNull { it.id == req.playlistId }
         return RemoteMessage.PlaylistsMutate(
@@ -228,6 +279,9 @@ class RemoteRequestHandlers(
     }
 
     fun handlePlaylistsRemoveTrack(req: RemoteMessage.PlaylistsRemoveTrackRequest): RemoteMessage.PlaylistsMutate {
+        if (!preferencesProvider().remoteSharePlaylists) {
+            return RemoteMessage.PlaylistsMutate(ok = false, playlist = null, requestId = req.requestId)
+        }
         libraryRepository.removeTrackFromPlaylist(req.playlistId, req.trackId)
         val updated = libraryRepository.snapshot().playlists.firstOrNull { it.id == req.playlistId }
         return RemoteMessage.PlaylistsMutate(
@@ -238,6 +292,18 @@ class RemoteRequestHandlers(
     }
 
     fun handleQueueState(req: RemoteMessage.QueueStateRequest): RemoteMessage.QueueState {
+        if (!preferencesProvider().remoteShareQueue) {
+            return RemoteMessage.QueueState(
+                requestId = req.requestId,
+                entries = emptyList(),
+                currentEntryId = null,
+                repeatMode = "OFF",
+                shuffleEnabled = false,
+                revision = 0L,
+                totalCount = -1,
+                offset = 0
+            )
+        }
         val proxy = queueProxy
         if (proxy == null) {
             return RemoteMessage.QueueState(

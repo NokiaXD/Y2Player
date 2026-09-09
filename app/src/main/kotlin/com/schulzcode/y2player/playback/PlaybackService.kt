@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
+import android.os.Process
 import android.os.SystemClock
 import android.view.KeyEvent
 import com.schulzcode.y2player.R
@@ -244,6 +245,16 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         fun setSafeMode(enabled: Boolean) = post {
             if (enabled) enterSafeModeInternal() else exitSafeModeInternal()
         }
+
+        fun disconnectRemoteClient() = post {
+            if (::remoteServer.isInitialized) remoteServer.disconnectClient()
+        }
+
+        fun setRemoteServerEnabled(enabled: Boolean) = post {
+            if (::remoteServer.isInitialized) {
+                if (enabled) remoteServer.start() else remoteServer.stop()
+            }
+        }
     }
 
     private data class NotificationKey(
@@ -312,6 +323,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     private var appliedGapless: Boolean? = null
     private var lastPeriodicPersistedPositionMs = Long.MIN_VALUE
     private var lastPublishedProgressSecond = -1L
+    private var lastRemoteProgressSecond = -1L
     private var currentPreparationRecorded = false
     private var requestCounter = 0L
     private var activeRequestId = 0L
@@ -375,7 +387,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         playbackWakeLock = PlaybackWakeLock(this)
 
-        playbackThread = HandlerThread("y2-playback").apply { start() }
+        playbackThread = HandlerThread("y2-playback", Process.THREAD_PRIORITY_AUDIO).apply { start() }
         playbackHandler = Handler(playbackThread.looper)
         routeMonitor = AudioRouteMonitor(this) { event -> post { handleRouteEvent(event) } }
         routeMonitor.start()
@@ -473,7 +485,8 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             val requestHandlers = RemoteRequestHandlers(
                 libraryRepository = libraryRepository,
                 artworkLoader = container.artworkLoader,
-                queueProxy = queueProxy
+                queueProxy = queueProxy,
+                preferencesProvider = { currentPreferences }
             )
 
             remoteServer = Y2RemoteServer(
@@ -483,7 +496,9 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
                 requestHandlers = requestHandlers,
                 onClientConnectionChanged = { connected -> post { handleRemoteClientConnection(connected) } }
             )
-            remoteServer.start()
+            if (currentPreferences.remoteServerEnabled) {
+                remoteServer.start()
+            }
 
             libraryRepository.addListener(
                 LibraryRepository.Listener { newState ->
@@ -1086,14 +1101,20 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         val app = application as? Y2Application ?: return
         val loader = app.container.artworkLoader
         loader.load(track.absolutePath, 180) { _, bitmap ->
-            post {
-                if (currentTrack?.id == targetTrackId && ::remoteServer.isInitialized && remoteServer.isClientConnected) {
-                    if (bitmap != null) {
-                        val stream = java.io.ByteArrayOutputStream()
-                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, stream)
-                        val base64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
-                        remoteServer.sendArtwork(base64)
-                    } else {
+            if (bitmap != null) {
+                persistenceExecutor.execute {
+                    val stream = java.io.ByteArrayOutputStream()
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, stream)
+                    val base64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
+                    post {
+                        if (currentTrack?.id == targetTrackId && ::remoteServer.isInitialized && remoteServer.isClientConnected) {
+                            remoteServer.sendArtwork(base64)
+                        }
+                    }
+                }
+            } else {
+                post {
+                    if (currentTrack?.id == targetTrackId && ::remoteServer.isInitialized && remoteServer.isClientConnected) {
                         remoteServer.sendArtwork("")
                     }
                 }
@@ -1103,6 +1124,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
 
     private fun handleRemoteClientConnection(connected: Boolean) {
         logger.info("RemoteServer", "remote client connected=$connected")
+        refreshSnapshot()
         if (connected) {
             if (snapshot.status == PlaybackStatus.PLAYING) {
                 scheduleProgress()
@@ -1110,6 +1132,8 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             publishSnapshot()
             lastSentArtworkTrackId = currentTrack?.id
             sendArtworkToRemote(currentTrack)
+        } else {
+            publishSnapshot()
         }
         stopSelfIfIdle()
     }
@@ -2075,11 +2099,19 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
 
     private fun applyPreferencesInternal(value: PlayerPreferencesState) {
         val previousGain = appVolumeGain()
+        val previousRemoteServerEnabled = currentPreferences.remoteServerEnabled
         val effective = runtimePreferences(value)
         val modeChanged = value.audioQualityMode != requestedPreferences.audioQualityMode
         if (modeChanged) clearPreload()
         requestedPreferences = value
         currentPreferences = effective
+        if (::remoteServer.isInitialized && previousRemoteServerEnabled != effective.remoteServerEnabled) {
+            if (effective.remoteServerEnabled) {
+                remoteServer.start()
+            } else {
+                remoteServer.stop()
+            }
+        }
         syncTransition()
         syncReplayGain()
         if (appVolumeGain() != previousGain && !fadeInProgress) setOutputVolume(effectiveVolume())
@@ -2302,6 +2334,12 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         if (mustPause) {
             handlePrivateRouteLoss(event.action)
         } else if (::queue.isInitialized) {
+            if (event.routes.bluetooth) {
+                runCatching {
+                    val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                    if (adapter?.isDiscovering == true) adapter.cancelDiscovery()
+                }
+            }
             refreshSnapshot()
             publishSnapshot()
         }
@@ -2386,7 +2424,8 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
                 pauseReason = pauseReason
             ),
             audioEffects = audioEffectsState,
-            dac = if (::dacController.isInitialized) dacController.snapshot(currentTrack) else DacState()
+            dac = if (::dacController.isInitialized) dacController.snapshot(currentTrack) else DacState(),
+            remoteClientConnected = ::remoteServer.isInitialized && remoteServer.isClientConnected
         )
     }
 
@@ -2441,6 +2480,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         libraryRepository.setPlaybackActive(value.status == PlaybackStatus.PLAYING)
         if (::remoteControl.isInitialized) remoteControl.update(value, currentTrack)
         if (::remoteServer.isInitialized) {
+            lastRemoteProgressSecond = value.positionMs / 1_000L
             remoteServer.update(value, currentTrack, currentVolumePercent())
             if (currentTrack?.id != lastSentArtworkTrackId) {
                 lastSentArtworkTrackId = currentTrack?.id
@@ -2471,7 +2511,13 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         val hasRemote = ::remoteServer.isInitialized && remoteServer.isClientConnected
         if (boundClients == 0 && !hasRemote) return
         val value = snapshot
-        if (hasRemote) remoteServer.update(value, currentTrack, currentVolumePercent())
+        if (hasRemote) {
+            val curSec = value.positionMs / 1_000L
+            if (curSec - lastRemoteProgressSecond >= REMOTE_PROGRESS_INTERVAL_SECONDS || curSec < lastRemoteProgressSecond) {
+                lastRemoteProgressSecond = curSec
+                remoteServer.update(value, currentTrack, currentVolumePercent())
+            }
+        }
         if (boundClients > 0) mainHandler.post { listeners.forEach { it.onPlaybackChanged(value) } }
     }
 
@@ -2587,6 +2633,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         const val EXTRA_VOLUME_ONE_SHOT = "com.schulzcode.y2player.extra.VOLUME_ONE_SHOT"
         private const val NOTIFICATION_ID = 19
         private const val PROGRESS_INTERVAL_MS = 250L
+        private const val REMOTE_PROGRESS_INTERVAL_SECONDS = 2L
         private const val BACKGROUND_PROGRESS_INTERVAL_MS = 5_000L
         private const val BACKGROUND_POSITION_PERSIST_INTERVAL_MS = 10_000L
         private const val POSITION_PERSIST_INTERVAL_MS = 5_000L

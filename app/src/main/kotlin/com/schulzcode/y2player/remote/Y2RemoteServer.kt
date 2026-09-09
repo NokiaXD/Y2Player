@@ -13,6 +13,8 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("MissingPermission")
@@ -56,7 +58,14 @@ class Y2RemoteServer(
         acceptThread = null
         connectedWorker?.cancel()
         connectedWorker = null
-        requestExecutor.shutdown()
+        onClientConnectionChanged(false)
+    }
+
+    @Synchronized
+    fun disconnectClient() {
+        logger.info("RemoteServer", "disconnectClient requested")
+        connectedWorker?.cancel()
+        connectedWorker = null
         onClientConnectionChanged(false)
     }
 
@@ -65,7 +74,7 @@ class Y2RemoteServer(
         if (!worker.isConnected) return
 
         val stateJson = RemoteProtocol.encodeSnapshot(snapshot, track, volumePercent)
-        worker.send(stateJson)
+        worker.sendState(stateJson)
     }
 
     fun sendArtwork(base64: String) {
@@ -144,9 +153,40 @@ class Y2RemoteServer(
 
         private val reader = BufferedReader(InputStreamReader(socket.inputStream, Charsets.UTF_8))
         private val writer = BufferedWriter(OutputStreamWriter(socket.outputStream, Charsets.UTF_8))
-        private val writeLock = Any()
+        private val outboundQueue = LinkedBlockingQueue<String>(128)
+        @Volatile private var pendingStateJson: String? = null
+
+        private val writerThread = Thread({
+            try {
+                while (isRunning.get() && isConnected) {
+                    val item = outboundQueue.poll(500, TimeUnit.MILLISECONDS) ?: continue
+                    val payload = if (item === STATE_SENTINEL) {
+                        val state = pendingStateJson
+                        pendingStateJson = null
+                        state ?: continue
+                    } else {
+                        item
+                    }
+                    try {
+                        writer.write(payload)
+                        writer.newLine()
+                        writer.flush()
+                    } catch (e: IOException) {
+                        if (isRunning.get() && isConnected) {
+                            logger.warn("RemoteServer", "error sending to client: ${e.message}")
+                        }
+                        cancel()
+                        break
+                    }
+                }
+            } catch (_: InterruptedException) {
+            } finally {
+                runCatching { writer.close() }
+            }
+        }, "y2-remote-sender").apply { isDaemon = true }
 
         override fun run() {
+            writerThread.start()
             try {
                 val helloJson = RemoteProtocol.encodeHello(
                     device = "Y2 Player",
@@ -202,7 +242,7 @@ class Y2RemoteServer(
                             val handlers = requestHandlers ?: continue
                             requestExecutor.execute {
                                 val result = handlers.handlePlaylistsList(message)
-                                send(RemoteProtocol.encodePlaylistsList(result.items, result.requestId))
+                                send(RemoteProtocol.encodePlaylistsList(result.items, result.requestId, result.total))
                             }
                         }
                         is RemoteMessage.PlaylistsTracksRequest -> {
@@ -345,6 +385,9 @@ class Y2RemoteServer(
                 }
             } finally {
                 isConnected = false
+                writerThread.interrupt()
+                outboundQueue.clear()
+                pendingStateJson = null
                 runCatching { reader?.close() }
                 runCatching { writer?.close() }
                 runCatching { socket.close() }
@@ -352,27 +395,35 @@ class Y2RemoteServer(
             }
         }
 
+        fun sendState(payload: String) {
+            if (!isConnected) return
+            pendingStateJson = payload
+            if (!outboundQueue.contains(STATE_SENTINEL)) {
+                outboundQueue.offer(STATE_SENTINEL)
+            }
+        }
+
         fun send(payload: String) {
             if (!isConnected) return
-            synchronized(writeLock) {
-                try {
-                    writer?.write(payload)
-                    writer?.newLine()
-                    writer?.flush()
-                } catch (e: IOException) {
-                    logger.warn("RemoteServer", "error sending to client: ${e.message}")
-                    cancel()
-                }
+            if (!outboundQueue.offer(payload)) {
+                logger.warn("RemoteServer", "outbound queue full; dropping message")
             }
         }
 
         fun cancel() {
             isConnected = false
+            writerThread.interrupt()
+            outboundQueue.clear()
+            pendingStateJson = null
             try {
                 socket.close()
             } catch (e: IOException) {
                 logger.warn("RemoteServer", "error closing client socket: ${e.message}")
             }
         }
+    }
+
+    companion object {
+        private const val STATE_SENTINEL = "__STATE__"
     }
 }

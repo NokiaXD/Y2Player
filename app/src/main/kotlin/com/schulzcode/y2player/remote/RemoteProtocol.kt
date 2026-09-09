@@ -208,6 +208,7 @@ sealed class RemoteMessage {
 
     data class PlaylistsList(
         val items: List<PlaylistRow>,
+        val total: Int = items.size,
         val requestId: Long
     ) : RemoteMessage()
 
@@ -594,12 +595,13 @@ object RemoteProtocol {
         }.toString()
     }
 
-    fun encodePlaylistsList(items: List<PlaylistRow>, requestId: Long): String {
+    fun encodePlaylistsList(items: List<PlaylistRow>, requestId: Long, total: Int = items.size): String {
         val itemsArray = JSONArray().apply { items.forEach { put(it.toJson()) } }
         return JSONObject().apply {
             put("type", TYPE_PLAYLISTS_LIST_RESULT)
             put("id", requestId)
             put("items", itemsArray)
+            put("total", total)
         }.toString()
     }
 
@@ -917,7 +919,8 @@ object RemoteProtocol {
                     val items = (0 until itemsArray.length()).map { i ->
                         PlaylistRow.fromJson(itemsArray.getJSONObject(i))
                     }
-                    RemoteMessage.PlaylistsList(items = items, requestId = json.optLong("id", 0L))
+                    val total = json.optInt("total", items.size)
+                    RemoteMessage.PlaylistsList(items = items, total = total, requestId = json.optLong("id", 0L))
                 }
                 TYPE_PLAYLISTS_TRACKS -> {
                     RemoteMessage.PlaylistsTracksRequest(

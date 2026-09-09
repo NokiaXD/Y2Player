@@ -75,6 +75,7 @@ sealed interface Screen {
     data object AlbumSorting : Screen
     data object YearSorting : Screen
     data object Bluetooth : Screen
+    data object RemoteControlSettings : Screen
     data class BluetoothDevice(val address: String) : Screen
     data class ConfirmAction(val key: String) : Screen
     data object InterfaceSettings : Screen
@@ -159,6 +160,7 @@ val Screen.code: String get() = when (this) {
     Screen.AlbumSorting -> "album_sorting"
     Screen.YearSorting -> "year_sorting"
     Screen.Bluetooth -> "bluetooth"
+    Screen.RemoteControlSettings -> "remote_settings"
     is Screen.BluetoothDevice -> "bluetooth_device"
     is Screen.ConfirmAction -> "confirm_action"
     Screen.InterfaceSettings -> "interface_settings"

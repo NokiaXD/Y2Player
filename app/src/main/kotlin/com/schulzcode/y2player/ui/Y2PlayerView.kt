@@ -787,6 +787,19 @@ class Y2PlayerView(
             )
 
             paint.style = Paint.Style.FILL
+            rightEdge -= 20f * density
+        }
+
+        if (state.playback.remoteClientConnected) {
+            iconPainter.draw(
+                canvas,
+                Y2Icon.PHONE,
+                rightEdge - 8f * density,
+                22f * density,
+                16f * density,
+                palette.accent
+            )
+            paint.style = Paint.Style.FILL
         }
 
         canvas.restoreToCount(headerSave)
@@ -2524,7 +2537,7 @@ class Y2PlayerView(
             "folders", "favorites", "recent", "audio", "settings", "output", "sort", "bluetooth",
             "sound_effects", "reset", "extra_track_info",
             "display", "controls", "storage", "system", "diagnostics", "android_settings", "about",
-            "interface", "library_settings", "sound", "balance", "brightness", "timeout", "queue",
+            "interface", "library_settings", "remote_settings", "sound", "balance", "brightness", "timeout", "queue",
             "queue_management", "playback_transitions", "playback_seeking", "playback_volume",
             "playback_interruptions", "equalizer", "sound_dynamics", "output_information", "artist_all_songs"
         )

@@ -58,7 +58,11 @@ class AppPreferences(context: Context) {
         equalizerBandLevelsMb = decodeLevels(string(KEY_EQ_BANDS, null)),
         bassStrength = integer(KEY_BASS_STRENGTH, 0).coerceIn(0, 1_000),
         loudnessGainMb = integer(KEY_LOUDNESS_GAIN, 0).coerceIn(0, 300),
-        balance = AudioBalance.clamp(integer(KEY_BALANCE, AudioBalance.CENTRE))
+        balance = AudioBalance.clamp(integer(KEY_BALANCE, AudioBalance.CENTRE)),
+        remoteServerEnabled = boolean(KEY_REMOTE_SERVER_ENABLED, true),
+        remoteShareLibrary = boolean(KEY_REMOTE_SHARE_LIBRARY, true),
+        remoteSharePlaylists = boolean(KEY_REMOTE_SHARE_PLAYLISTS, true),
+        remoteShareQueue = boolean(KEY_REMOTE_SHARE_QUEUE, true)
     )
 
     fun toggleUiSoundEffects() = updateBoolean(KEY_UI_SOUND_EFFECTS, !snapshot().uiSoundEffectsEnabled)
@@ -78,6 +82,10 @@ class AppPreferences(context: Context) {
     fun toggleGapless() = updateBoolean(KEY_GAPLESS, !snapshot().gaplessEnabled)
     fun toggleDuckOnFocusLoss() = updateBoolean(KEY_DUCK_ON_FOCUS_LOSS, !snapshot().duckOnFocusLoss)
     fun toggleAudioEffects() = updateBoolean(KEY_EFFECTS_ENABLED, !snapshot().audioEffectsEnabled)
+    fun toggleRemoteServerEnabled() = updateBoolean(KEY_REMOTE_SERVER_ENABLED, !snapshot().remoteServerEnabled)
+    fun toggleRemoteShareLibrary() = updateBoolean(KEY_REMOTE_SHARE_LIBRARY, !snapshot().remoteShareLibrary)
+    fun toggleRemoteSharePlaylists() = updateBoolean(KEY_REMOTE_SHARE_PLAYLISTS, !snapshot().remoteSharePlaylists)
+    fun toggleRemoteShareQueue() = updateBoolean(KEY_REMOTE_SHARE_QUEUE, !snapshot().remoteShareQueue)
     fun cycleHapticLevel(): PlayerPreferencesState {
         val next = snapshot().hapticLevel.next()
         return commit { putString(KEY_HAPTIC_LEVEL, next.storageId) }
@@ -270,6 +278,10 @@ class AppPreferences(context: Context) {
         private const val KEY_BASS_STRENGTH = "bass_strength"
         private const val KEY_LOUDNESS_GAIN = "loudness_gain_mb"
         private const val KEY_BALANCE = "balance"
+        private const val KEY_REMOTE_SERVER_ENABLED = "remote_server_enabled"
+        private const val KEY_REMOTE_SHARE_LIBRARY = "remote_share_library"
+        private const val KEY_REMOTE_SHARE_PLAYLISTS = "remote_share_playlists"
+        private const val KEY_REMOTE_SHARE_QUEUE = "remote_share_queue"
         private const val EQ_STEP_MB = 300
         private const val MAX_EQ_PRESETS = 100
         private const val MAX_EQ_BANDS = 32

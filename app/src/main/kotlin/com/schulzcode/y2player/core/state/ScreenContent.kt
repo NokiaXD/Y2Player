@@ -145,6 +145,7 @@ object ScreenContent {
         Screen.AlbumSorting -> "Album Order"
         Screen.YearSorting -> "Year Lists"
         Screen.Bluetooth -> "Bluetooth"
+        Screen.RemoteControlSettings -> "Remote Phone"
         is Screen.BluetoothDevice -> "Device"
         is Screen.ConfirmAction -> "Confirm"
         Screen.InterfaceSettings -> "Interface"
@@ -253,6 +254,7 @@ object ScreenContent {
         Screen.AlbumSorting -> albumSortRows()
         Screen.YearSorting -> yearSortRows()
         Screen.Bluetooth -> bluetoothRows(state)
+        Screen.RemoteControlSettings -> remoteControlSettingsRows(state)
         is Screen.BluetoothDevice -> bluetoothDeviceRows(state, screen)
         is Screen.ConfirmAction -> confirmActionRows(state, screen)
         Screen.InterfaceSettings -> interfaceRows(state)
@@ -843,11 +845,45 @@ object ScreenContent {
 
     private fun settingsRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Bluetooth", bluetoothSummary(state), "bluetooth"),
+        ScreenRow.Action("Remote Phone", remoteControlSummary(state), "remote_settings"),
         ScreenRow.Action("Audio", playbackSummary(state), "audio"),
         ScreenRow.Action("Interface", "Display, controls and Now Playing", "interface"),
         ScreenRow.Action("Library", "Storage, sorting and history", "library_settings"),
         ScreenRow.Action("System", "Backup, diagnostics, reset and about", "system")
     )
+
+    private fun remoteControlSummary(state: AppState): String = when {
+        !state.preferences.remoteServerEnabled -> "Off"
+        state.playback.remoteClientConnected -> "Connected"
+        else -> "Enabled"
+    }
+
+    private fun remoteControlSettingsRows(state: AppState): List<ScreenRow> = buildList {
+        add(ScreenRow.Action(
+            "Remote Server",
+            if (state.preferences.remoteServerEnabled) "On" else "Off",
+            "remote_server_toggle"
+        ))
+        if (state.playback.remoteClientConnected) {
+            add(ScreenRow.Action("Disconnect Phone", "Disconnect currently connected phone", "remote_disconnect"))
+        }
+        add(ScreenRow.Action("Pair New Phone", "Make player discoverable (120s)", "remote_discoverable"))
+        add(ScreenRow.Action(
+            "Share Library",
+            if (state.preferences.remoteShareLibrary) "On" else "Off",
+            "remote_share_library"
+        ))
+        add(ScreenRow.Action(
+            "Share Playlists",
+            if (state.preferences.remoteSharePlaylists) "On" else "Off",
+            "remote_share_playlists"
+        ))
+        add(ScreenRow.Action(
+            "Share Queue",
+            if (state.preferences.remoteShareQueue) "On" else "Off",
+            "remote_share_queue"
+        ))
+    }
 
     private fun interfaceRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Display", "${state.display.brightnessPercent}% · ${timeoutLabel(state.display.screenTimeoutMs)}", "display"),

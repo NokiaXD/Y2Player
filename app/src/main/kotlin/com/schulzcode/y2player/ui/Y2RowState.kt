@@ -45,6 +45,10 @@ object Y2RowState {
             key == "replay_gain" -> state.preferences.replayGainMode != ReplayGainMode.OFF
             key == "diag_verbose" -> state.preferences.verboseDiagnostics
             key == "bt_toggle" -> state.bluetooth.adapterMode == BluetoothAdapterMode.ON
+            key == "remote_server_toggle" -> state.preferences.remoteServerEnabled
+            key == "remote_share_library" -> state.preferences.remoteShareLibrary
+            key == "remote_share_playlists" -> state.preferences.remoteSharePlaylists
+            key == "remote_share_queue" -> state.preferences.remoteShareQueue
             isFavoriteKey(key) -> favoriteTrackId(key)?.let(state.library.byId::get)?.favorite == true
             key.startsWith("bt_device:") -> state.bluetooth.devices.any {
                 "bt_device:${it.address}" == key &&
