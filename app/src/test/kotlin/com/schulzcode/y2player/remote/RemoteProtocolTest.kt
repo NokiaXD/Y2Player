@@ -162,4 +162,56 @@ class RemoteProtocolTest {
         val msg = RemoteProtocol.parseMessage(artworkJson) as RemoteMessage.Artwork
         assertEquals(fakeBase64, msg.base64)
     }
+
+    @Test
+    fun `encode and parse queue state request with pagination`() {
+        val json = RemoteProtocol.encodeQueueStateRequest(requestId = 42L, offset = 50, limit = 100)
+        val msg = RemoteProtocol.parseMessage(json)
+        assertTrue(msg is RemoteMessage.QueueStateRequest)
+        val req = msg as RemoteMessage.QueueStateRequest
+        assertEquals(42L, req.requestId)
+        assertEquals(50, req.offset)
+        assertEquals(100, req.limit)
+    }
+
+    @Test
+    fun `encode and parse queue state result with total count and offset`() {
+        val entries = listOf(
+            QueueEntryRow(
+                entryId = 1L,
+                trackId = 100L,
+                origin = "context",
+                track = TrackRow(
+                    id = 100L,
+                    title = "Test Song",
+                    artist = "Test Artist",
+                    album = "Test Album",
+                    durationMs = 180000L,
+                    favorite = false,
+                    hasArtwork = true
+                )
+            )
+        )
+        val json = RemoteProtocol.encodeQueueState(
+            requestId = 42L,
+            entries = entries,
+            currentEntryId = 1L,
+            repeatMode = "ALL",
+            shuffleEnabled = true,
+            revision = 5L,
+            totalCount = 2900,
+            offset = 0
+        )
+        val msg = RemoteProtocol.parseMessage(json)
+        assertTrue(msg is RemoteMessage.QueueState)
+        val state = msg as RemoteMessage.QueueState
+        assertEquals(42L, state.requestId)
+        assertEquals(1, state.entries.size)
+        assertEquals(1L, state.currentEntryId)
+        assertEquals("ALL", state.repeatMode)
+        assertTrue(state.shuffleEnabled)
+        assertEquals(5L, state.revision)
+        assertEquals(2900, state.totalCount)
+        assertEquals(0, state.offset)
+    }
 }

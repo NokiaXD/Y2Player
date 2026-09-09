@@ -401,6 +401,17 @@ class LibraryRepository(
         ))
     }
 
+    fun createPlaylist(name: String) = stateExecutor.execute {
+        val playlist = database.createPlaylist(name)
+        logger.info("Playlist", "created ${playlist.name}")
+        revision += 1
+        publish(current.copy(
+            revision = revision,
+            playlists = current.playlists + playlist,
+            playlistTrackIds = current.playlistTrackIds + (playlist.id to emptyList())
+        ))
+    }
+
     fun createPlaylistWithTrack(trackId: Long) = stateExecutor.execute {
         val playlist = database.createPlaylist()
         database.addTrackToPlaylist(playlist.id, trackId)
@@ -446,6 +457,18 @@ class LibraryRepository(
             revision = revision,
             playlists = current.playlists.filterNot { it.id == playlistId },
             playlistTrackIds = current.playlistTrackIds - playlistId
+        ))
+    }
+
+    fun renamePlaylist(playlistId: Long, name: String) = stateExecutor.execute {
+        val trimmed = name.trim().take(256)
+        if (trimmed.isEmpty()) return@execute
+        database.renamePlaylist(playlistId, trimmed)
+        logger.info("Playlist", "renamed playlist=$playlistId to '$trimmed'")
+        revision += 1
+        publish(current.copy(
+            revision = revision,
+            playlists = current.playlists.map { if (it.id == playlistId) it.copy(name = trimmed) else it }
         ))
     }
 

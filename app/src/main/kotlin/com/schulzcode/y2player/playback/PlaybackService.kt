@@ -47,7 +47,10 @@ import com.schulzcode.y2player.queue.QueueController
 import com.schulzcode.y2player.safe.SafeModeManager
 import com.schulzcode.y2player.settings.AppPreferences
 import com.schulzcode.y2player.storage.StorageMonitor
+import com.schulzcode.y2player.queue.QueueSnapshot
+import com.schulzcode.y2player.remote.PlaybackQueueProxy
 import com.schulzcode.y2player.remote.RemoteCommand
+import com.schulzcode.y2player.remote.RemoteRequestHandlers
 import com.schulzcode.y2player.remote.Y2RemoteServer
 import com.schulzcode.y2player.storage.Y2StoragePaths
 import com.schulzcode.y2player.storage.preferredWritableRoot
@@ -88,11 +91,15 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             beginExplicitPlaybackRequest()
             if (shuffled) queue.replaceShuffled(trackIds, repeatAll = false)
             else queue.replace(trackIds, startIndex)
+            queueRevision += 1
             currentRetryCount = 0
             consecutiveErrors = 0
             syncReplayGain()
             syncTransition()
             prepareCurrent(autoPlay = true, positionMs = prepareAudiobookStart(ignoreSavedPosition = fromStart))
+            if (::remoteServer.isInitialized) {
+                remoteServer.pushEventQueueChanged("replace", queueRevision)
+            }
         }
 
         fun clearAudiobookProgress(folderKey: String, onComplete: (Boolean) -> Unit) = post {
@@ -108,9 +115,13 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             releaseCurrentTrack(PlaybackExitReason.QUEUE_REPLACED)
             beginExplicitPlaybackRequest()
             queue.replaceShuffled(trackIds)
+            queueRevision += 1
             currentRetryCount = 0
             consecutiveErrors = 0
             prepareCurrent(autoPlay = true, positionMs = 0)
+            if (::remoteServer.isInitialized) {
+                remoteServer.pushEventQueueChanged("replace_shuffled", queueRevision)
+            }
         }
 
         fun playQueueEntry(entryId: Long) = post {
@@ -273,6 +284,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
 
     @Volatile private var snapshot = PlaybackSnapshot()
     @Volatile private var currentTrack: Track? = null
+    @Volatile private var queueRevision = 0L
     @Volatile private var shuttingDown = false
     private var fmController: FmController? = null
     private var fmListener: ((FmState) -> Unit)? = null
@@ -388,14 +400,100 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
                 onSeekRequested = { position -> post { seekAbsoluteInternal(position) } },
                 artworkLoader = container.artworkLoader
             )
+            queue = QueueController()
+            val queueProxy = object : PlaybackQueueProxy {
+                override fun getQueueSnapshot(): QueueSnapshot = queue.snapshot()
+                override fun getQueueRevision(): Long = queueRevision
+                override fun replaceQueue(trackIds: List<Long>, startIndex: Int, shuffled: Boolean) {
+                    post {
+                        if (trackIds.isEmpty()) return@post
+                        releaseCurrentTrack(PlaybackExitReason.QUEUE_REPLACED)
+                        beginExplicitPlaybackRequest()
+                        if (shuffled) queue.replaceShuffled(trackIds)
+                        else queue.replace(trackIds, startIndex)
+                        currentRetryCount = 0
+                        consecutiveErrors = 0
+                        prepareCurrent(autoPlay = true, positionMs = 0)
+                    }
+                }
+                override fun playNext(trackIds: List<Long>) {
+                    post {
+                        queue.playNext(trackIds)
+                        afterQueueMutation()
+                    }
+                }
+                override fun addToUpNext(trackIds: List<Long>) {
+                    post {
+                        queue.addToUpNext(trackIds, shuffled = false)
+                        afterQueueMutation()
+                    }
+                }
+                override fun removeQueueEntry(entryId: Long) {
+                    post { removeQueueEntryInternal(entryId) }
+                }
+                override fun moveQueueEntry(entryId: Long, delta: Int) {
+                    post {
+                        if (queue.moveEntry(entryId, delta)) afterQueueMutation()
+                    }
+                }
+                override fun promoteQueueEntry(entryId: Long) {
+                    post {
+                        if (queue.promoteToPlayNext(entryId)) afterQueueMutation()
+                    }
+                }
+                override fun toggleShuffle() {
+                    post {
+                        queue.toggleShuffle()
+                        afterQueueMutation()
+                    }
+                }
+                override fun cycleRepeat() {
+                    post {
+                        queue.cycleRepeat()
+                        afterQueueMutation()
+                    }
+                }
+                override fun clearUpNext() {
+                    post {
+                        queue.clearUpNext()
+                        afterQueueMutation()
+                    }
+                }
+                override fun clearRemaining() {
+                    post {
+                        queue.clearRemaining()
+                        afterQueueMutation()
+                    }
+                }
+                override fun clearQueue() {
+                    post(::clearQueueInternal)
+                }
+            }
+
+            val requestHandlers = RemoteRequestHandlers(
+                libraryRepository = libraryRepository,
+                artworkLoader = container.artworkLoader,
+                queueProxy = queueProxy
+            )
+
             remoteServer = Y2RemoteServer(
                 logger = logger,
                 stateProvider = { Triple(snapshot, currentTrack, currentVolumePercent()) },
                 onCommandReceived = { command -> post { handleRemoteCommand(command) } },
+                requestHandlers = requestHandlers,
                 onClientConnectionChanged = { connected -> post { handleRemoteClientConnection(connected) } }
             )
             remoteServer.start()
-            queue = QueueController()
+
+            libraryRepository.addListener(
+                LibraryRepository.Listener { newState ->
+                    if (::remoteServer.isInitialized) {
+                        remoteServer.pushEventLibraryChanged(newState.revision)
+                    }
+                },
+                emitImmediately = false
+            )
+
             restorePersistedState(skipQueue = safeModeManager.isSafeMode())
             // After restorePersistedState, which settles the shuffle state the effective
             // crossfade depends on, and outside it, since it returns early in safe mode.
@@ -908,6 +1006,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     }
 
     private var lastSentArtworkTrackId: Long? = null
+    private var lastSentQueueEntryId: Long? = null
 
     private fun handleRemoteCommand(command: RemoteCommand) {
         logger.info("RemoteCommand", "handling remote command: $command")
@@ -1401,12 +1500,16 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     }
 
     private fun afterQueueMutation() {
+        queueRevision += 1
         syncReplayGain()
         syncTransition()
         refreshSnapshot()
         persistQueueState()
         revalidatePreload()
         publishSnapshot()
+        if (::remoteServer.isInitialized) {
+            remoteServer.pushEventQueueChanged("mutation", queueRevision)
+        }
     }
 
     private fun prepareCurrent(
@@ -2342,6 +2445,10 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             if (currentTrack?.id != lastSentArtworkTrackId) {
                 lastSentArtworkTrackId = currentTrack?.id
                 sendArtworkToRemote(currentTrack)
+            }
+            if (value.currentQueueEntryId != lastSentQueueEntryId) {
+                lastSentQueueEntryId = value.currentQueueEntryId
+                remoteServer.pushEventQueueChanged("current_entry", queueRevision)
             }
         }
         mainHandler.post {

@@ -423,6 +423,16 @@ class LibraryDatabase(private val appContext: Context) : SQLiteOpenHelper(
         return PlaylistSummary(id, name, 0)
     }
 
+    fun createPlaylist(name: String): PlaylistSummary {
+        val trimmed = name.trim().take(256)
+        if (trimmed.isEmpty()) return createPlaylist()
+        val id = writableDatabase.insertOrThrow("playlists", null, ContentValues().apply {
+            put("name", trimmed)
+            put("created_at", System.currentTimeMillis())
+        })
+        return PlaylistSummary(id, trimmed, 0)
+    }
+
     fun loadPlaylists(): List<PlaylistSummary> = readableDatabase.rawQuery(
         """
         SELECT p.id, p.name, COUNT(pt.track_id)
@@ -467,6 +477,14 @@ class LibraryDatabase(private val appContext: Context) : SQLiteOpenHelper(
 
     fun deletePlaylist(playlistId: Long) {
         writableDatabase.delete("playlists", "id = ?", arrayOf(playlistId.toString()))
+    }
+
+    fun renamePlaylist(playlistId: Long, name: String) {
+        writableDatabase.update(
+            "playlists",
+            ContentValues().apply { put("name", name) },
+            "id = ?", arrayOf(playlistId.toString())
+        )
     }
 
     fun loadPlaylistTrackIds(playlistId: Long): List<Long> = readableDatabase.query(
