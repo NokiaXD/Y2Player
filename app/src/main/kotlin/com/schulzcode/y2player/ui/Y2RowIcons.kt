@@ -98,7 +98,9 @@ object Y2RowIcons {
         "equalizer", "eq_preset", "eq_bands", "effects_toggle", "sound_dynamics",
         "bass", "loudness" -> Y2Icon.EQUALIZER
         "audio_quality", "output_information" -> Y2Icon.DAC
-        "bluetooth", "bt_toggle" -> Y2Icon.BLUETOOTH
+        "bluetooth", "bt_toggle", "remote_settings", "remote_server_toggle", "remote_discoverable" -> Y2Icon.BLUETOOTH
+        "remote_disconnect" -> Y2Icon.REMOVE
+        "remote_share_library", "remote_share_playlists", "remote_share_queue" -> Y2Icon.SLIDERS
         "bt_scan", "bt_refresh", "reload_skins" -> Y2Icon.REFRESH
 
         "interface" -> Y2Icon.SLIDERS

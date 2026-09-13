@@ -67,6 +67,7 @@ object ScreenCatalogue {
         put(Screen.AlbumSorting)
         put(Screen.YearSorting)
         put(Screen.Bluetooth)
+        put(Screen.RemoteControlSettings)
         put(Screen.BluetoothDevice("AA:BB:CC:DD:EE:FF"))
         put(Screen.ConfirmAction(ConfirmPrompts.CLEAR_QUEUE))
         put(Screen.InterfaceSettings)

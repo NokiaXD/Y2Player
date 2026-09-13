@@ -160,7 +160,7 @@ class MainMenuHierarchyTest {
 
     @Test fun `Audio moved under Settings and stays reachable`() {
         val settings = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
-        assertEquals(listOf("bluetooth", "audio", "interface", "library_settings", "system"), keys(settings))
+        assertEquals(listOf("bluetooth", "remote_settings", "audio", "interface", "library_settings", "system"), keys(settings))
         assertEquals(Screen.Audio, open(settings, "audio").state.currentScreen)
     }
 

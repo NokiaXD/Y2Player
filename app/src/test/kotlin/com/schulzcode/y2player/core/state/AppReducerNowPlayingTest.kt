@@ -248,7 +248,7 @@ class AppReducerNowPlayingTest {
         val settings = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
         val rows = ScreenContent.rows(settings)
         assertEquals(
-            listOf("bluetooth", "audio", "interface", "library_settings", "system"),
+            listOf("bluetooth", "remote_settings", "audio", "interface", "library_settings", "system"),
             rows.map { (it as ScreenRow.Action).key }
         )
         val systemIndex = rows.indexOfFirst { (it as? ScreenRow.Action)?.key == "system" }

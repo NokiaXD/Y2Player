@@ -29,7 +29,10 @@ class Y2RemoteServer(
     private var acceptThread: AcceptThread? = null
     @Volatile private var connectedWorker: ConnectedWorker? = null
     private val requestExecutor = Executors.newFixedThreadPool(2) { runnable ->
-        Thread(runnable, "y2-remote-handler").apply { isDaemon = true }
+        Thread({
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            runnable.run()
+        }, "y2-remote-handler").apply { isDaemon = true }
     }
 
     val isClientConnected: Boolean
@@ -102,13 +105,21 @@ class Y2RemoteServer(
         private var serverSocket: BluetoothServerSocket? = null
 
         override fun run() {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             while (isRunning.get()) {
                 try {
                     logger.info("RemoteServer", "listening for RFCOMM connection on UUID=${RemoteProtocol.SERVICE_UUID}")
-                    serverSocket = adapter.listenUsingRfcommWithServiceRecord(
-                        RemoteProtocol.SERVICE_NAME,
-                        RemoteProtocol.SERVICE_UUID
-                    )
+                    serverSocket = try {
+                        adapter.listenUsingInsecureRfcommWithServiceRecord(
+                            RemoteProtocol.SERVICE_NAME,
+                            RemoteProtocol.SERVICE_UUID
+                        )
+                    } catch (_: Exception) {
+                        adapter.listenUsingRfcommWithServiceRecord(
+                            RemoteProtocol.SERVICE_NAME,
+                            RemoteProtocol.SERVICE_UUID
+                        )
+                    }
                 } catch (e: IOException) {
                     logger.error("RemoteServer", "failed to listen for RFCOMM: ${e.message}")
                     try { sleep(2000) } catch (_: InterruptedException) { break }
@@ -157,6 +168,7 @@ class Y2RemoteServer(
         @Volatile private var pendingStateJson: String? = null
 
         private val writerThread = Thread({
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             try {
                 while (isRunning.get() && isConnected) {
                     val item = outboundQueue.poll(500, TimeUnit.MILLISECONDS) ?: continue
@@ -168,9 +180,24 @@ class Y2RemoteServer(
                         item
                     }
                     try {
-                        writer.write(payload)
-                        writer.newLine()
-                        writer.flush()
+                        if (payload.length > 2048) {
+                            var offset = 0
+                            while (offset < payload.length && isRunning.get() && isConnected) {
+                                val chunk = minOf(1024, payload.length - offset)
+                                writer.write(payload, offset, chunk)
+                                writer.flush()
+                                offset += chunk
+                                if (offset < payload.length) {
+                                    try { Thread.sleep(3) } catch (_: InterruptedException) { break }
+                                }
+                            }
+                            writer.newLine()
+                            writer.flush()
+                        } else {
+                            writer.write(payload)
+                            writer.newLine()
+                            writer.flush()
+                        }
                     } catch (e: IOException) {
                         if (isRunning.get() && isConnected) {
                             logger.warn("RemoteServer", "error sending to client: ${e.message}")
@@ -186,6 +213,7 @@ class Y2RemoteServer(
         }, "y2-remote-sender").apply { isDaemon = true }
 
         override fun run() {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             writerThread.start()
             try {
                 val helloJson = RemoteProtocol.encodeHello(

@@ -184,9 +184,12 @@ internal class AudioTrackOutput : AudioOutput, PcmSink {
         }
 
         val frameBytes = PcmFormat.PCM16_BYTES_PER_FRAME
-        val bufferBytes = maxOf(minimumBytes * 2, PcmFormat.PCM16_BLOCK_BYTES * 2)
-            .coerceAtMost(MAX_AUDIO_TRACK_BUFFER_BYTES)
-            .let { it - (it % frameBytes) }
+        val targetBufferBytes = maxOf(
+            minimumBytes * 4,
+            PcmFormat.PCM16_BLOCK_BYTES * 4,
+            PcmFormat.SAMPLE_RATE * frameBytes / 4 // 250ms buffer floor for BT stability
+        ).coerceAtMost(MAX_AUDIO_TRACK_BUFFER_BYTES)
+        val bufferBytes = targetBufferBytes - (targetBufferBytes % frameBytes)
 
         val created = AudioTrack(
             AudioManager.STREAM_MUSIC,
